@@ -5,7 +5,6 @@ name: Deploy
 on:
   push:
     branches:
-      - main
       - master
 
 jobs:
@@ -23,9 +22,8 @@ jobs:
           script: |
             set -euo pipefail
             cd "${{ secrets.DEPLOY_PATH }}"
-            BRANCH="${{ github.ref_name }}"
             git fetch origin
-            git checkout "$BRANCH"
-            git pull --ff-only origin "$BRANCH"
+            git checkout master
+            git pull --ff-only origin master
             npm ci --omit=dev
             ${{ secrets.DEPLOY_RESTART_CMD }}
