@@ -156,8 +156,11 @@ function formatInstructionsBlock() {
 
 function formatPlayerLine(index, name, isPaid) {
   const paddedIndex = `${index + 1}`.padStart(2, " ") + ".";
-  const paddedName = formatPlayerName(name, 14).padEnd(14, " ");
-  return `${paddedIndex} ${paddedName}${isPaid ? " ✅" : ""}`;
+  const columnName = formatPlayerName(name, 14);
+  if (isPaid) {
+    return `${paddedIndex} ${columnName.trimEnd()} ✅`;
+  }
+  return `${paddedIndex} ${columnName}`;
 }
 
 function formatPlayersBlock(names, paid, limit) {

@@ -1,3 +1,20 @@
+/** Тестовый матч: s test / start test — дата «сегодня» по локальному времени сервера, время и площадка фиксированы. */
+export function parseTestStartCommand(text) {
+  const trimmed = text.trim()
+  if (!/^(s|start)\s+test$/iu.test(trimmed)) return null
+
+  const d = new Date()
+  const dd = String(d.getDate()).padStart(2, '0')
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  const yyyy = d.getFullYear()
+
+  return {
+    date: `${dd}.${mm}.${yyyy}`,
+    time: '12:00',
+    place: 'Тест',
+  }
+}
+
 export function parseStartCommand(text) {
   const trimmed = text.trim()
   const match =

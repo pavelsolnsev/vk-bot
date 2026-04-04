@@ -102,8 +102,24 @@ export function createMessageNewHandler({ vk, store }) {
       return;
     }
 
+    const looksLikeStartCommand =
+      /^s\s+/iu.test(text) || /^start\s+/iu.test(text);
+
     if (!lastEvent) {
-      // бот реагирует только на команды
+      if (isCommandLike && !looksLikeStartCommand) {
+        await deleteIncomingCommandMessage(context);
+        await sendEphemeral(context, "⚠️ Матч не запущен", 3000);
+        return;
+      }
+      if (looksLikeStartCommand) {
+        await deleteIncomingCommandMessage(context);
+        await sendEphemeral(
+          context,
+          "⚠️ Формат: s ДД.ММ.ГГГГ ЧЧ:ММ место (пример: s 04.04.2026 18:00 Сатурн)",
+          5000,
+        );
+        return;
+      }
       return;
     }
 
