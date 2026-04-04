@@ -31,4 +31,8 @@ jobs:
             git checkout master
             git pull --ff-only origin master
             npm ci --omit=dev
-            ${{ secrets.DEPLOY_RESTART_CMD }}
+            RESTART="${{ secrets.DEPLOY_RESTART_CMD }}"
+            if [ -n "$RESTART" ]; then
+              # login-shell: в PATH попадает pm2 из npm -g / nvm как при обычном SSH
+              bash -lc "$RESTART"
+            fi
