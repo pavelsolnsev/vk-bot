@@ -154,36 +154,56 @@ function formatInstructionsBlock() {
   );
 }
 
-function formatPlayerLine(index, name, isPaid) {
+/**
+ * Ссылка на профиль ВК в тексте сообщения (кликабельно в клиентах VK).
+ * Не использовать | ] [ в подписи — ломают разбор BBCode.
+ */
+function vkProfileMention(userId, displayLabel) {
+  if (typeof userId !== "number" || userId <= 0) return null;
+  const safe = String(displayLabel).replace(/[[\]|]/g, "").trim();
+  if (!safe) return null;
+  return `[id${userId}|${safe}]`;
+}
+
+function formatPlayerLine(index, name, isPaid, userId) {
   const paddedIndex = `${index + 1}`.padStart(2, " ") + ".";
   const columnName = formatPlayerName(name, 14);
+  const label = columnName.trimEnd();
+  const mention = vkProfileMention(userId, label);
   if (isPaid) {
-    return `${paddedIndex} ${columnName.trimEnd()} ✅`;
+    const body = mention ?? label;
+    return `${paddedIndex} ${body} ✅`;
+  }
+  if (mention) {
+    return `${paddedIndex} ${mention}`;
   }
   return `${paddedIndex} ${columnName}`;
 }
 
-function formatPlayersBlock(names, paid, limit) {
+function formatPlayersBlock(names, paid, limit, participantIds) {
   const header = [`🏆 В игре:`];
   let playerLines;
   if (!names.length) {
     playerLines = [`   — пока никто не записался`];
   } else {
-    playerLines = names.map(
-      (n, i) => `   ${formatPlayerLine(i, n, paid?.[i] === true)}`,
-    );
+    playerLines = names.map((n, i) => {
+      const uid = participantIds?.[i];
+      return `   ${formatPlayerLine(i, n, paid?.[i] === true, uid)}`;
+    });
   }
 
   return [...header, ...playerLines].join("\n") + "\n";
 }
 
-function formatQueueBlock(queueNames) {
+function formatQueueBlock(queueNames, queueIds) {
   if (!queueNames?.length) return "";
   const header = [`📢 Очередь:`];
   const lines = queueNames.map((n, i) => {
     const paddedIndex = `${i + 1}`.padStart(2, " ") + ".";
-    const paddedName = formatPlayerName(n, 14).padEnd(14, " ");
-    return `   ${paddedIndex} ${paddedName}`;
+    const columnName = formatPlayerName(n, 14);
+    const mention = vkProfileMention(queueIds?.[i], columnName.trimEnd());
+    const body = mention ?? columnName;
+    return `   ${paddedIndex} ${body}`;
   });
   // ведущий перенос, чтобы отделить от блока "В игре"
   return "\n" + [...header, ...lines].join("\n") + "\n";
@@ -207,6 +227,10 @@ export function buildEventListText({
   paid,
   queueNames,
   maxPlayers,
+  /** параллельно names — id пользователя VK (>0); иначе строка без ссылки */
+  participantIds,
+  /** параллельно queueNames */
+  queueIds,
 }) {
   const placeKey = String(place || "")
     .trim()
@@ -235,9 +259,14 @@ export function buildEventListText({
     } else if (block === "instructions") {
       text += formatInstructionsBlock();
     } else if (block === "players") {
-      text += formatPlayersBlock(names, paid, maxPlayers ?? loc?.limit);
+      text += formatPlayersBlock(
+        names,
+        paid,
+        maxPlayers ?? loc?.limit,
+        participantIds,
+      );
     } else if (block === "queue") {
-      text += formatQueueBlock(queueNames);
+      text += formatQueueBlock(queueNames, queueIds);
     } else if (block === "summary") {
       text += formatSummaryBlock(names.length, maxPlayers ?? loc?.limit);
     }

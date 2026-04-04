@@ -22,6 +22,8 @@ export async function buildEventListMessageBody(vk, userNameCache, event) {
     paid,
     queueNames,
     maxPlayers: event.maxPlayers,
+    participantIds: participants,
+    queueIds: queue,
   })
   return stripDuplicateListBlocks(body)
 }
