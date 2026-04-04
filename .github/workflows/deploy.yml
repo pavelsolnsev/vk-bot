@@ -22,6 +22,11 @@ jobs:
           script: |
             set -euo pipefail
             cd "${{ secrets.DEPLOY_PATH }}"
+            if [ ! -d .git ]; then
+              echo "DEPLOY_PATH не является клоном Git: $(pwd)"
+              echo "На сервере выполни git clone в этот каталог или поправь секрет DEPLOY_PATH (нужна папка с .git)."
+              exit 1
+            fi
             git fetch origin
             git checkout master
             git pull --ff-only origin master
