@@ -11,7 +11,6 @@ import { tryPlusMinus } from "./commands/plusMinus.js";
 import { tryAddByName } from "./commands/addByName.js";
 import { tryAddTestPlayers } from "./commands/addTestPlayers.js";
 import { runRdy } from "./commands/rdy.js";
-import { tryShowMyVkAccount } from "./commands/showMyVkAccount.js";
 
 export function createMessageNewHandler({ vk, store }) {
   return async (context) => {
@@ -49,11 +48,7 @@ export function createMessageNewHandler({ vk, store }) {
       return;
     }
 
-    if (/^id$/iu.test(text)) {
-      await deleteIncomingCommandMessage(context);
-      await tryShowMyVkAccount({ vk, context, senderId });
-      return;
-    }
+    // Команда id временно отключена (логика в commands/showMyVkAccount.js).
 
     // Все остальные команды — только админ (и всегда удаляем сообщение с командой)
     const isCommandLike =
