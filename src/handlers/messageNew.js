@@ -11,6 +11,7 @@ import { tryPlusMinus } from "./commands/plusMinus.js";
 import { tryAddByName } from "./commands/addByName.js";
 import { tryAddTestPlayers } from "./commands/addTestPlayers.js";
 import { runRdy } from "./commands/rdy.js";
+import { tryShowMyVkAccount } from "./commands/showMyVkAccount.js";
 
 export function createMessageNewHandler({ vk, store }) {
   return async (context) => {
@@ -45,6 +46,12 @@ export function createMessageNewHandler({ vk, store }) {
         text,
         senderId,
       });
+      return;
+    }
+
+    if (/^id$/iu.test(text)) {
+      await deleteIncomingCommandMessage(context);
+      await tryShowMyVkAccount({ vk, context, senderId });
       return;
     }
 
@@ -115,7 +122,7 @@ export function createMessageNewHandler({ vk, store }) {
         await deleteIncomingCommandMessage(context);
         await sendEphemeral(
           context,
-          "⚠️ Формат: s ДД.ММ.ГГГГ ЧЧ:ММ место (пример: s 04.04.2026 18:00 Сатурн)",
+          "⚠️ Формат: s ДД.ММ.ГГГГ ЧЧ:ММ место (пример: s 04.04.2026 18:00 Сатурн) или s prof / s tr",
           5000,
         );
         return;

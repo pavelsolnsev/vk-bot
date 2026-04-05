@@ -6,12 +6,16 @@ const ONE_MINUTE_MS = 60 * 1000
 
 const randomId = () => Math.floor(Math.random() * 10000) * Date.now()
 
+const TOURNAMENT_ONLINE_URL = 'https://tournament.pavelsolntsev.ru/'
+
 const locations = {
-  kz: { name: 'Красное Знамя', sum: 400 },
-  prof: { name: 'Профилакторий', sum: 400 },
+  kz: { name: 'Красное Знамя', sum: 500 },
+  prof: { name: 'Профилакторий', sum: 500 },
   saturn: { name: 'Сатурн', sum: 600 },
   tr: { name: 'Турнир' },
 }
+
+const notifyLiveLine = `\n📺 Следи за ходом турнира в режиме онлайн: ${TOURNAMENT_ONLINE_URL}`
 
 function parseEventDateTime({ dateDdMmYyyy, timeHhMm }) {
   const [dd, mm, yyyy] = String(dateDdMmYyyy).split('.').map(Number)
@@ -36,7 +40,9 @@ function buildNotifyText(event, startsAt) {
       `📅 Когда: ${formatWhen(startsAt)}\n` +
       `📍 Локация: ${loc?.name || event.place}\n\n` +
       '✅ Что нужно сделать:\n' +
-      '• Прибыть за 15 минут до начала\n'
+      '• Прибыть за 15 минут до начала\n' +
+      notifyLiveLine +
+      '\n'
     )
   }
 
@@ -49,7 +55,9 @@ function buildNotifyText(event, startsAt) {
     '✅ Что нужно сделать:\n' +
     '• Подготовить экипировку\n' +
     sumLine +
-    '• Прибыть за 15 минут до начала\n'
+    '• Прибыть за 15 минут до начала\n' +
+    notifyLiveLine +
+    '\n'
   )
 }
 
@@ -59,6 +67,7 @@ async function sendGroupMessage(vk, peerId, message) {
     peer_id: peerId,
     random_id: randomId(),
     message,
+    dont_parse_links: 1,
   }
   if (groupId != null) params.group_id = groupId
 
@@ -110,7 +119,9 @@ export async function checkTimeAndNotify(vk, store) {
     // ЛС игрокам основного состава (как в telegram-bot: только players, не queue)
     const ids = Array.isArray(event.participantsOrder) ? event.participantsOrder : [...(event.participants || [])]
     const uniq = [...new Set(ids)].filter((id) => typeof id === 'number' && id > 0)
-    await Promise.all(uniq.map((id) => sendPrivateMessage(vk, id, text)))
+    await Promise.all(
+      uniq.map((id) => sendPrivateMessage(vk, id, text, { dont_parse_links: 1 })),
+    )
   }
 }
 

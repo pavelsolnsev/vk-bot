@@ -1,8 +1,15 @@
-import { parseStartCommand, parseTestStartCommand } from '../../parsers/startCommand.js'
+import {
+  parseStartCommand,
+  parseTestStartCommand,
+  parsePresetStartCommand,
+} from '../../parsers/startCommand.js'
 import { refreshList } from './context.js'
 
 export async function tryStartEvent({ vk, store, context, text, peerId, senderId }) {
-  const startCmd = parseTestStartCommand(text) ?? parseStartCommand(text)
+  const startCmd =
+    parseTestStartCommand(text) ??
+    parsePresetStartCommand(text) ??
+    parseStartCommand(text)
   if (!startCmd) return false
 
   const lastId = store.getLastEventId(peerId)

@@ -1,5 +1,7 @@
 import { formatPlayerName } from "./playerName.js";
 
+const TOURNAMENT_ONLINE_URL = "https://tournament.pavelsolntsev.ru/";
+
 // Локации и их блоки, по аналогии с telegram-bot/utils/sendPlayerList.js
 const locations = {
   kz: {
@@ -9,7 +11,7 @@ const locations = {
     link: "https://yandex.ru/maps/-/CLuPMJ3L",
     route:
       "https://yandex.ru/maps/?mode=routes&rtext=~55.574202,38.205299&rtt=auto",
-    sum: 400,
+    sum: 500,
     limit: 20,
     blocks: [
       "date",
@@ -29,7 +31,7 @@ const locations = {
     link: "https://yandex.ru/maps/-/CHfBZ-mH",
     route:
       "https://yandex.ru/maps/?mode=routes&rtext=~55.578414,38.219605&rtt=auto",
-    sum: 400,
+    sum: 500,
     limit: 20,
     blocks: [
       "date",
@@ -210,10 +212,14 @@ function formatQueueBlock(queueNames, queueIds) {
 }
 
 function formatSummaryBlock(count, limit) {
+  let block;
   if (typeof limit === "number") {
-    return `\n📊 Игроков: ${count} из ${limit}\n`;
+    block = `\n📊 Игроков: ${count} из ${limit}\n`;
+  } else {
+    block = `\n📊 Игроков: ${count}\n`;
   }
-  return `\n📊 Игроков: ${count}\n`;
+  block += `\n📺 Следи за ходом турнира в режиме онлайн: ${TOURNAMENT_ONLINE_URL}\n`;
+  return block;
 }
 
 /**

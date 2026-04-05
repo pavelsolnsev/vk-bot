@@ -13,6 +13,8 @@ export async function sendListMessage(vk, context, event, { text, keyboard }) {
     message: stripDuplicateListBlocks(text),
     random_id: randomSendId(),
     keyboard: keyboard.toString(),
+    /** без превью по ссылкам (иначе ВК рисует карточку сообщества на vk.com/...) */
+    dont_parse_links: 1,
   }
   if (groupId != null) {
     params.group_id = groupId
@@ -54,6 +56,7 @@ export async function editListMessage(vk, { peerId, event, text, keyboard }) {
     peer_id: peerId,
     message: stripDuplicateListBlocks(text),
     keyboard: keyboard.toString(),
+    dont_parse_links: 1,
   }
 
   if (event.listConversationMessageId != null) {
@@ -84,8 +87,8 @@ export async function syncEventListMessage({ vk, context, event, text, keyboard 
 
   try {
     await editListMessage(vk, { peerId: event.peerId, event, text, keyboard })
-  } catch (e) {
-    console.error('messages.edit failed (no-fallback-send):', e?.message || e)
+  } catch {
+    // сообщение могло быть удалено или недоступно для редактирования
   }
 }
 
@@ -109,11 +112,6 @@ export async function deleteListMessage(vk, { peerId, event }) {
     params.message_ids = [mid]
   } else {
     // Нет валидного идентификатора сообщения — удалять нечего
-    console.error('[delete list] no valid message id to delete', {
-      peerId,
-      cmid,
-      mid,
-    })
     return
   }
 

@@ -18,7 +18,6 @@ vk.updates.on('message_event', createMessageEventHandler({ vk, store }))
 
 async function main() {
   await vk.updates.start()
-  console.log('Бот запущен и слушает сообщения сообщества')
   startNotifyLoop(vk, store)
 }
 

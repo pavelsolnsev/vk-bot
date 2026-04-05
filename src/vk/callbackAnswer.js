@@ -13,7 +13,6 @@ export async function sendCallbackAnswer(vk, ctx, { eventData } = {}) {
   const userId = ctx.userId ?? ctx.payload?.user_id
 
   if (eventId == null || peerId == null || userId == null) {
-    console.error('sendCallbackAnswer: missing fields', { eventId, peerId, userId })
     return
   }
 
@@ -36,7 +35,6 @@ export async function sendCallbackAnswer(vk, ctx, { eventData } = {}) {
   }
   groupAttempts.push({})
 
-  let lastError
   for (const ed of eventDataAttempts) {
     for (const extra of groupAttempts) {
       const params = {
@@ -49,15 +47,9 @@ export async function sendCallbackAnswer(vk, ctx, { eventData } = {}) {
       try {
         await vk.api.messages.sendMessageEventAnswer(params)
         return
-      } catch (e) {
-        lastError = e
+      } catch {
+        // пробуем следующий вариант event_data / group_id
       }
     }
   }
-
-  console.error(
-    'sendMessageEventAnswer: все попытки не удались',
-    lastError?.message || lastError,
-    { event_id: String(eventId), peerId, userId },
-  )
 }
