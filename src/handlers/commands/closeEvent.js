@@ -1,4 +1,5 @@
 import { deleteListMessage } from '../../vk/listMessage.js'
+import { unregisterVkListLinkOnFootballSite } from '../../services/footballApi.js'
 
 export async function runCloseEvent({ vk, store, peerId }) {
   const lastId = store.getLastEventId(peerId)
@@ -14,6 +15,8 @@ export async function runCloseEvent({ vk, store, peerId }) {
   }
 
   store.deleteEvent(lastId)
+  // Сайт больше не должен пушить состав в этот чат (матч не от бота / список закрыт).
+  await unregisterVkListLinkOnFootballSite().catch(() => {})
   return true
 }
 

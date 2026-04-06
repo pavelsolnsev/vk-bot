@@ -8,3 +8,9 @@ export async function refreshList({ vk, store, context, event }) {
   await syncEventListMessage({ vk, context, event, text, keyboard })
 }
 
+/** Обновить список без живого MessageContext (поллинг сайта — достаточно peer_id). */
+export async function refreshListForEvent({ vk, store, event }) {
+  const context = { peerId: event.peerId }
+  return refreshList({ vk, store, context, event })
+}
+

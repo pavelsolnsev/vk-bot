@@ -1,6 +1,9 @@
 import { joinEvent } from '../../services/roster.js'
-import { createVirtualPlayerId, setVirtualPlayerName } from '../../services/virtualPlayers.js'
+import { setVirtualPlayerName } from '../../services/virtualPlayers.js'
 import { refreshList } from './context.js'
+import { createSyntheticPlayerOnFootballSite } from '../../services/footballApi.js'
+import { syncFootballAfterJoin } from '../../services/footballRosterSync.js'
+import { sendEphemeral } from '../../vk/sendEphemeral.js'
 
 export async function tryAddByName({ vk, store, context, event, text }) {
   const m = text.match(/^\+add\s+(.+)$/iu)
@@ -9,11 +12,26 @@ export async function tryAddByName({ vk, store, context, event, text }) {
   const name = m[1].trim()
   if (!name) return true
 
-  const id = createVirtualPlayerId()
-  setVirtualPlayerName(store.userNameCache, id, name)
-  joinEvent(event, id)
+  const created = await createSyntheticPlayerOnFootballSite({ name })
+  if (!created?.ok || typeof created.vk_user_id !== 'number') {
+    await sendEphemeral(
+      context,
+      'Не удалось создать игрока на сайте. Проверь FOOTBALL_API_URL и токен (FOOTBALL_TOKEN = VK_TOKEN на сервере).',
+      6500,
+    )
+    return true
+  }
 
+  const vkId = created.vk_user_id
+  setVirtualPlayerName(store.userNameCache, vkId, created.name ?? name)
+  const res = joinEvent(event, vkId)
+  const rolledBack = await syncFootballAfterJoin(vk, vkId, res, {
+    event,
+    overrideFirstName: created.name ?? name,
+    overrideLastName: '',
+    onBlocked: () =>
+      sendEphemeral(context, '⚠️ Идёт live-матч, запись в турнир на сайте закрыта.', 5000),
+  })
   await refreshList({ vk, store, context, event })
   return true
 }
-

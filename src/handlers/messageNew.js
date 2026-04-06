@@ -156,7 +156,10 @@ export function createMessageNewHandler({ vk, store }) {
       return;
     }
 
-    // Игнорируем любые другие сообщения (бот реагирует только на команды)
+    // Админ отправил текст похожий на команду, но ни один обработчик не сработал — всё равно убираем сообщение из чата.
+    if (isCommandLike && admin) {
+      await deleteIncomingCommandMessage(context);
+    }
     return;
   };
 }

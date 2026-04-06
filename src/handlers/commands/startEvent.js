@@ -4,6 +4,7 @@ import {
   parsePresetStartCommand,
 } from '../../parsers/startCommand.js'
 import { refreshList } from './context.js'
+import { registerVkListLinkOnFootballSite } from '../../services/footballApi.js'
 
 export async function tryStartEvent({ vk, store, context, text, peerId, senderId }) {
   const startCmd =
@@ -26,6 +27,8 @@ export async function tryStartEvent({ vk, store, context, text, peerId, senderId
   })
 
   await refreshList({ vk, store, context, event })
+  // Связь peer + id события на сайте — без этого обратная синхронизация сайт→ВК не работает.
+  await registerVkListLinkOnFootballSite({ peerId, gameEventId: event.id })
   return 'started'
 }
 

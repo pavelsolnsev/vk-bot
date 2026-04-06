@@ -1,13 +1,17 @@
-import { sendCallbackAnswer } from '../../vk/callbackAnswer.js'
+import { sendCallbackAnswer, vkShowSnackbarEventData } from '../../vk/callbackAnswer.js'
 import { joinEvent, leaveEvent } from '../../services/roster.js'
 import { normalizeButtonPayload } from './normalizeButtonPayload.js'
 import { refreshList } from '../commands/context.js'
-import { notifyJoinedQueue, notifyPromotedToMain } from '../../services/dmNotifications.js'
-import { registerPlayerOnFootballSite, removePlayerFromFootballSite } from '../../services/footballApi.js'
+import { notifyPromotedToMain } from '../../services/dmNotifications.js'
+import { syncFootballAfterJoin } from '../../services/footballRosterSync.js'
+import { removePlayerFromFootballSite } from '../../services/footballApi.js'
 
 export async function handleEventButton({ vk, store, ctx }) {
   const payload = normalizeButtonPayload(ctx.eventPayload)
   if (!payload) return
+
+  // Текст для show_snackbar — видит только нажавший кнопку.
+  let snackbarText = null
 
   const event = store.getEvent(payload.gameEventId)
   if (!event) {
@@ -17,40 +21,35 @@ export async function handleEventButton({ vk, store, ctx }) {
 
   if (payload.cmd === 'join') {
     const res = joinEvent(event, ctx.userId)
-    if (res?.status === 'queue') {
-      await notifyJoinedQueue(vk, ctx.userId)
-    }
-
-    // Получаем имя пользователя из ВК и регистрируем его на football-сайте.
-    // Делаем это только если игрок реально добавился (не был уже в списке).
-    if (res?.status === 'main' || res?.status === 'queue') {
-      try {
-        // vk.api.users.get возвращает массив — берём первого пользователя.
-        const users = await vk.api.users.get({ user_ids: [ctx.userId] })
-        const user = users?.[0]
-        if (user) {
-          await registerPlayerOnFootballSite({
-            vkUserId: ctx.userId,
-            firstName: user.first_name ?? '',
-            lastName: user.last_name ?? '',
-          })
-        }
-      } catch {
-        // Не ломаем бота если не удалось получить имя.
-      }
+    const rolledBack = await syncFootballAfterJoin(vk, ctx.userId, res, {
+      event,
+      onBlocked: () => {
+        snackbarText = '⚠️ Идёт live-матч, запись в турнир на сайте закрыта.'
+      },
+    })
+    if (res?.status === 'noop') {
+      // Уже в основе или в очереди — подсказка только нажавшему (snackbar).
+      snackbarText = event.participants.has(ctx.userId)
+        ? 'Вы уже в основном составе.'
+        : 'Вы уже в очереди.'
+    } else if (res?.status === 'queue' && !rolledBack) {
+      snackbarText = '📢 Вы записаны в очередь.'
     }
   } else if (payload.cmd === 'leave') {
-    const res = leaveEvent(event, ctx.userId)
-    if (res?.promoted?.length) {
-      await notifyPromotedToMain(vk, res.promoted)
-    }
-
-    // Убираем игрока с football-сайта только если он реально вышел из списка или очереди.
-    if (res?.leftFrom === 'main' || res?.leftFrom === 'queue') {
-      try {
-        await removePlayerFromFootballSite({ vkUserId: ctx.userId })
-      } catch {
-        // football API недоступен — список ВК уже обновлён
+    const uid = ctx.userId
+    const inRoster = event.participants.has(uid) || event.queue.has(uid)
+    if (!inRoster) {
+      snackbarText = 'Вас нет в списке записи.'
+    } else {
+      // Сначала сайт — при live не трогаем список ВК (иначе пришлось бы откатывать сложнее).
+      const apiRes = await removePlayerFromFootballSite({ vkUserId: uid })
+      if (apiRes?.tournamentLive) {
+        snackbarText = '⚠️ Идёт live-матч, выход из турнира на сайте закрыт.'
+      } else {
+        const res = leaveEvent(event, uid)
+        if (res?.promoted?.length) {
+          await notifyPromotedToMain(vk, res.promoted)
+        }
       }
     }
   }
@@ -61,13 +60,14 @@ export async function handleEventButton({ vk, store, ctx }) {
     event.listConversationMessageId = cmid
   }
 
+  const snackbarOpts = snackbarText ? { eventData: vkShowSnackbarEventData(snackbarText) } : {}
+
   try {
     await refreshList({ vk, store, context: ctx, event })
   } catch {
-    await sendCallbackAnswer(vk, ctx, {})
+    await sendCallbackAnswer(vk, ctx, snackbarOpts)
     return
   }
 
-  await sendCallbackAnswer(vk, ctx, {})
+  await sendCallbackAnswer(vk, ctx, snackbarOpts)
 }
-

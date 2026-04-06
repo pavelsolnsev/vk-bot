@@ -1,5 +1,10 @@
 import { resolveGroupIdForApi } from './groupId.js'
 
+/** JSON для event_data: всплывашка только у нажавшего callback-кнопку (VK show_snackbar). */
+export function vkShowSnackbarEventData(text) {
+  return JSON.stringify({ type: 'show_snackbar', text: String(text ?? '') })
+}
+
 /**
  * Ответ на нажатие callback-кнопки (иначе крутится индикатор).
  * Нельзя «пропускать» event_data: для снятия загрузки нужна явная пустая строка

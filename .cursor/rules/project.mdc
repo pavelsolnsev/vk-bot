@@ -1,0 +1,31 @@
+---
+description: Global project context — VK API docs, football site, buttons vs commands parity
+alwaysApply: true
+---
+
+# VK Bot project — external references
+
+## VK API and bot changes
+
+When editing or extending this VK bot (callbacks, messages, groups, tokens, limits, payloads, keyboards, etc.), **consult the official VK developer documentation** and align behavior with it:
+
+- [VK for developers — documentation guide](https://dev.vk.com/ru/guide)
+
+Prefer citing or following that documentation over assumptions when API behavior, parameters, or platform rules matter.
+
+## Site integration — tournament.pavelsolntsev.ru
+
+If the bot or this repo **interacts with** [https://tournament.pavelsolntsev.ru/](https://tournament.pavelsolntsev.ru/) (scraping, API calls, URLs, data shapes, auth, or shared business rules), **also inspect the local codebase** at:
+
+`D:\web\football`
+
+Use that project as the source of truth for how the site works, endpoints, models, and conventions unless this repo explicitly duplicates them.
+
+## Buttons and text commands — same behavior
+
+When the bot exposes **the same user action** through more than one entry point (for example a **keyboard / callback button** and a **text command**, or payload vs typed command), **implement the full behavior for every path**:
+
+- **Do not** ship logic only on the button or only on the command while the other path is missing, stubbed, or divergent.
+- Prefer **one shared handler or function** for the core behavior, and call it from both the callback/button path and the command/message path so fixes and edge cases stay in sync.
+
+If a path is intentionally unsupported, document why in code (brief comment) near the entry points; otherwise assume both must work the same way.
