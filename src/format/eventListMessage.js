@@ -7,7 +7,7 @@ const locations = {
   kz: {
     name: "Красное Знамя",
     address:
-      "Московская область, г. Раменское, ул. Воровского, д.4A (Красное Знамя - Спортивный зал)",
+      "Московская область, г. Раменское, ул. Воровского, д.4A (Красное Знамя)",
     link: "https://yandex.ru/maps/-/CLuPMJ3L",
     route:
       "https://yandex.ru/maps/?mode=routes&rtext=~55.574202,38.205299&rtt=auto",
@@ -67,7 +67,7 @@ const locations = {
   tr: {
     name: "Турнир",
     address:
-      "Московская область, г. Раменское, ул. Воровского, д.4A (Красное Знамя - Спортивный зал)",
+      "Московская область, г. Раменское, ул. Воровского, д.4A (Красное Знамя)",
     link: "https://yandex.ru/maps/-/CLuPMJ3L",
     route:
       "https://yandex.ru/maps/?mode=routes&rtext=~55.574202,38.205299&rtt=auto",

@@ -1,3 +1,4 @@
+import { logError } from '../../utils/botLog.js'
 import { sendCallbackAnswer, vkShowSnackbarEventData } from '../../vk/callbackAnswer.js'
 import { joinEvent, leaveEvent } from '../../services/roster.js'
 import { normalizeButtonPayload } from './normalizeButtonPayload.js'
@@ -64,7 +65,8 @@ export async function handleEventButton({ vk, store, ctx }) {
 
   try {
     await refreshList({ vk, store, context: ctx, event })
-  } catch {
+  } catch (err) {
+    logError('handleEventButton/refreshList', err, { gameEventId: event?.id })
     await sendCallbackAnswer(vk, ctx, snackbarOpts)
     return
   }

@@ -1,5 +1,6 @@
 // После join в списке ВК — синхронизируем с football-сайтом (как кнопка «Играть» / «+»).
 // Выход с сайта делаем в обработчиках ДО leaveEvent в ВК (см. handleEventButton, plusMinus).
+import { logError } from '../utils/botLog.js'
 import { leaveEvent } from './roster.js'
 import { registerPlayerOnFootballSite } from './footballApi.js'
 
@@ -39,8 +40,8 @@ export async function syncFootballAfterJoin(vk, userId, joinRes, options = {}) {
       if (typeof onBlocked === 'function') await onBlocked()
       return true
     }
-  } catch {
-    // Сайт недоступен — список ВК уже обновлён
+  } catch (err) {
+    logError('syncFootballAfterJoin', err, { userId })
   }
   return false
 }

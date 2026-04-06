@@ -1,3 +1,4 @@
+import { logError } from '../utils/botLog.js'
 import { resolveGroupIdForApi } from '../vk/groupId.js'
 import { sendPrivateMessage } from '../vk/sendPrivateMessage.js'
 
@@ -81,7 +82,7 @@ async function deleteMessageLater(vk, peerId, messageId, delayMs) {
   setTimeout(() => {
     const params = { peer_id: peerId, delete_for_all: 1, message_ids: [messageId] }
     if (groupId != null) params.group_id = groupId
-    vk.api.messages.delete(params).catch(() => {})
+    vk.api.messages.delete(params).catch((err) => logError('checkTimeAndNotify/delete', err))
   }, delayMs)
 }
 
@@ -112,8 +113,8 @@ export async function checkTimeAndNotify(vk, store) {
       const msgId = await sendGroupMessage(vk, event.peerId, text)
       // как в телеграм-боте: удаляем через 3 часа
       await deleteMessageLater(vk, event.peerId, msgId, THREE_HOURS_MS)
-    } catch {
-      // даже если в беседу не получилось — не спамим повторно
+    } catch (err) {
+      logError('checkTimeAndNotify/group', err, { peerId: event.peerId })
     }
 
     // ЛС игрокам основного состава (как в telegram-bot: только players, не queue)
@@ -127,7 +128,7 @@ export async function checkTimeAndNotify(vk, store) {
 
 export function startNotifyLoop(vk, store) {
   setInterval(() => {
-    checkTimeAndNotify(vk, store).catch(() => {})
+    checkTimeAndNotify(vk, store).catch((err) => logError('checkTimeAndNotify/loop', err))
   }, ONE_MINUTE_MS)
 }
 

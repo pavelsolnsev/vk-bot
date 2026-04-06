@@ -1,6 +1,10 @@
 // Сервис для связи с football-сайтом.
 // Вызывается когда пользователь нажимает «Играть» или «Выйти» — регистрирует или убирает его из проекта.
 
+import { logError, logHttpNotOk } from '../utils/botLog.js'
+
+const S = 'footballApi'
+
 /**
  * Регистрирует пользователя ВК на игру в football-проекте.
  * Если игрока нет — создаёт нового с именем из ВК-профиля.
@@ -15,7 +19,6 @@ export async function registerPlayerOnFootballSite({ vkUserId, firstName, lastNa
   const apiUrl = process.env.FOOTBALL_API_URL
   const token = process.env.FOOTBALL_TOKEN
 
-  // Если переменные не настроены — пропускаем без ошибки.
   if (!apiUrl || !token) {
     return null
   }
@@ -25,26 +28,28 @@ export async function registerPlayerOnFootballSite({ vkUserId, firstName, lastNa
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        // Передаём секретный токен — сервер проверяет что запрос от бота.
-        'Authorization': `Bearer ${token}`,
+        Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({ vk_user_id: vkUserId, first_name: firstName, last_name: lastName }),
     })
 
     if (!response.ok) {
-      // 409 — турнир в live, сайт не принимает запись в список (см. football join.post).
       if (response.status === 409) {
-        await response.text().catch(() => {})
+        try {
+          await response.text()
+        } catch {
+          /* ignore */
+        }
         return { ok: false, tournamentLive: true }
       }
-      await response.text().catch(() => {})
+      await logHttpNotOk(S, response, 'POST /api/vk/join')
       return null
     }
 
-    // Возвращаем данные созданного игрока — { ok, player: { id, name } }.
     const data = await response.json()
     return data
-  } catch {
+  } catch (err) {
+    logError(`${S}/join`, err, { vkUserId })
     return null
   }
 }
@@ -59,7 +64,6 @@ export async function removePlayerFromFootballSite({ vkUserId }) {
   const apiUrl = process.env.FOOTBALL_API_URL
   const token = process.env.FOOTBALL_TOKEN
 
-  // Если переменные не настроены — пропускаем без ошибки.
   if (!apiUrl || !token) {
     return null
   }
@@ -69,24 +73,28 @@ export async function removePlayerFromFootballSite({ vkUserId }) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
+        Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({ vk_user_id: vkUserId }),
     })
 
     if (!response.ok) {
-      // 409 — турнир в live, снятие с турнира на сайте закрыто (см. football leave.post).
       if (response.status === 409) {
-        await response.text().catch(() => {})
+        try {
+          await response.text()
+        } catch {
+          /* ignore */
+        }
         return { ok: false, tournamentLive: true }
       }
-      await response.text().catch(() => {})
+      await logHttpNotOk(S, response, 'POST /api/vk/leave')
       return null
     }
 
     const data = await response.json()
     return data
-  } catch {
+  } catch (err) {
+    logError(`${S}/leave`, err, { vkUserId })
     return null
   }
 }
@@ -111,11 +119,12 @@ export async function registerVkListLinkOnFootballSite({ peerId, gameEventId }) 
       body: JSON.stringify({ peer_id: peerId, game_event_id: gameEventId }),
     })
     if (!response.ok) {
-      await response.text().catch(() => {})
+      await logHttpNotOk(S, response, 'POST /api/vk/link-event')
       return null
     }
     return await response.json()
-  } catch {
+  } catch (err) {
+    logError(`${S}/link-event`, err, { peerId, gameEventId })
     return null
   }
 }
@@ -132,11 +141,12 @@ export async function unregisterVkListLinkOnFootballSite() {
       body: JSON.stringify({}),
     })
     if (!response.ok) {
-      await response.text().catch(() => {})
+      await logHttpNotOk(S, response, 'POST /api/vk/unlink-event')
       return null
     }
     return await response.json()
-  } catch {
+  } catch (err) {
+    logError(`${S}/unlink-event`, err)
     return null
   }
 }
@@ -156,11 +166,12 @@ export async function createSyntheticPlayerOnFootballSite({ name }) {
       body: JSON.stringify({ name }),
     })
     if (!response.ok) {
-      await response.text().catch(() => {})
+      await logHttpNotOk(S, response, 'POST /api/vk/create-synthetic-player')
       return null
     }
     return await response.json()
-  } catch {
+  } catch (err) {
+    logError(`${S}/create-synthetic-player`, err, { name })
     return null
   }
 }
@@ -179,11 +190,34 @@ export async function fetchFootballSiteRosterSnapshot() {
       headers: { Authorization: `Bearer ${token}` },
     })
     if (!response.ok) {
-      await response.text().catch(() => {})
+      await logHttpNotOk(S, response, 'GET /api/vk/roster-snapshot')
       return null
     }
     return await response.json()
-  } catch {
+  } catch (err) {
+    logError(`${S}/roster-snapshot`, err)
+    return null
+  }
+}
+
+/** Сбросить флаг «закрыть список» после runCloseEvent (или noop). */
+export async function ackVkListCloseRequest() {
+  const apiUrl = process.env.FOOTBALL_API_URL
+  const token = process.env.FOOTBALL_TOKEN
+  if (!apiUrl || !token) return null
+  try {
+    const response = await fetch(`${apiUrl}/api/vk/close-list-ack`, {
+      method: 'POST',
+      headers: vkJsonHeaders(token),
+      body: JSON.stringify({}),
+    })
+    if (!response.ok) {
+      await logHttpNotOk(S, response, 'POST /api/vk/close-list-ack')
+      return null
+    }
+    return await response.json()
+  } catch (err) {
+    logError(`${S}/close-list-ack`, err)
     return null
   }
 }

@@ -1,3 +1,4 @@
+import { logError } from '../../utils/botLog.js'
 import { deleteListMessage } from '../../vk/listMessage.js'
 import { unregisterVkListLinkOnFootballSite } from '../../services/footballApi.js'
 
@@ -16,7 +17,7 @@ export async function runCloseEvent({ vk, store, peerId }) {
 
   store.deleteEvent(lastId)
   // Сайт больше не должен пушить состав в этот чат (матч не от бота / список закрыт).
-  await unregisterVkListLinkOnFootballSite().catch(() => {})
+  await unregisterVkListLinkOnFootballSite().catch((err) => logError('closeEvent/unregister', err))
   return true
 }
 
