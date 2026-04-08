@@ -1,6 +1,11 @@
 import { joinEvent, leaveEvent } from '../../services/roster.js'
 import { refreshList } from './context.js'
-import { notifyJoinedQueue, notifyPromotedToMain } from '../../services/dmNotifications.js'
+import {
+  notifyJoinedQueue,
+  notifyPromotedToMain,
+  notifyAdminsPlayerJoined,
+  notifyAdminsPlayerLeft,
+} from '../../services/dmNotifications.js'
 import { syncFootballAfterJoin } from '../../services/footballRosterSync.js'
 import { removePlayerFromFootballSite } from '../../services/footballApi.js'
 import { sendEphemeral } from '../../vk/sendEphemeral.js'
@@ -24,6 +29,13 @@ export async function tryPlusMinus({ vk, store, context, event, text, senderId }
     } else if (res?.status === 'queue' && !rolledBack) {
       await notifyJoinedQueue(vk, senderId)
     }
+    if ((res?.status === 'main' || res?.status === 'queue') && !rolledBack) {
+      await notifyAdminsPlayerJoined(vk, {
+        userId: senderId,
+        source: 'plus',
+        rosterStatus: res.status,
+      })
+    }
   }
   if (text === '-') {
     const inRoster = event.participants.has(senderId) || event.queue.has(senderId)
@@ -38,6 +50,11 @@ export async function tryPlusMinus({ vk, store, context, event, text, senderId }
         if (res?.promoted?.length) {
           await notifyPromotedToMain(vk, res.promoted)
         }
+        await notifyAdminsPlayerLeft(vk, {
+          userId: senderId,
+          source: 'minus',
+          leftFrom: res.leftFrom,
+        })
       }
     }
   }

@@ -2,6 +2,7 @@
 // Выход с сайта делаем в обработчиках ДО leaveEvent в ВК (см. handleEventButton, plusMinus).
 import { logError } from '../utils/botLog.js'
 import { leaveEvent } from './roster.js'
+import { noteSiteSyncGraceAfterFootballJoin } from './applySiteRosterToEvent.js'
 import { registerPlayerOnFootballSite } from './footballApi.js'
 
 /**
@@ -39,6 +40,9 @@ export async function syncFootballAfterJoin(vk, userId, joinRes, options = {}) {
       leaveEvent(event, userId)
       if (typeof onBlocked === 'function') await onBlocked()
       return true
+    }
+    if (result?.ok === true && event) {
+      noteSiteSyncGraceAfterFootballJoin(event, userId)
     }
   } catch (err) {
     logError('syncFootballAfterJoin', err, { userId })

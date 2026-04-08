@@ -10,6 +10,12 @@ export function ensureRoster(event) {
   if (!Number.isFinite(event.maxPlayers) || event.maxPlayers <= 0) event.maxPlayers = 20
   if (!event.participants) event.participants = new Set()
   if (!event.participantsOrder) event.participantsOrder = []
+  // Временная «страховка» после POST /api/vk/join: снимок состава мог прийти из БД на мгновение раньше фиксации.
+  if (!event.siteSyncGraceUntilByVkId) event.siteSyncGraceUntilByVkId = new Map()
+}
+
+function clearSiteSyncGraceForVkId(event, userId) {
+  event.siteSyncGraceUntilByVkId?.delete(userId)
 }
 
 export function joinEvent(event, userId) {
@@ -30,6 +36,7 @@ export function joinEvent(event, userId) {
 
 export function leaveEvent(event, userId) {
   ensureRoster(event)
+  clearSiteSyncGraceForVkId(event, userId)
 
   if (event.participants.delete(userId)) {
     removeFromOrder(event.participantsOrder, userId)
@@ -99,6 +106,7 @@ function promoteFromQueue(event) {
 
 export function removeUserEverywhere(event, userId) {
   ensureRoster(event)
+  clearSiteSyncGraceForVkId(event, userId)
   event.participants.delete(userId)
   event.queue.delete(userId)
   event.paidParticipants.delete(userId)

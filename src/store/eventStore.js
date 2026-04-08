@@ -32,6 +32,8 @@ export function createEventStore() {
         listConversationMessageId: null,
         /** обычный message_id — запасной идентификатор для messages.edit */
         listMessageId: null,
+        /** vkId → epoch ms: не выкидываем из списка, пока сайт не отдаст этого человека в снимке (гонка poll vs join). */
+        siteSyncGraceUntilByVkId: new Map(),
       }
       events.set(id, event)
       lastEventByPeer.set(peerId, id)

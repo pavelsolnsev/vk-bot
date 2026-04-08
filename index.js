@@ -4,7 +4,9 @@ import { createEventStore } from './src/store/eventStore.js'
 import { createMessageNewHandler } from './src/handlers/messageNew.js'
 import { createMessageEventHandler } from './src/handlers/messageEvent.js'
 import { startNotifyLoop } from './src/services/checkTimeAndNotify.js'
-import { startSiteRosterPoll } from './src/services/siteRosterPoll.js'
+import { stopSiteRosterPoll } from './src/services/siteRosterPoll.js'
+import { initializeFootballSiteMode } from './src/services/footballApi.js'
+import { setSiteListPollStop } from './src/handlers/commands/closeEvent.js'
 import { logError, logWarn } from './src/utils/botLog.js'
 
 if (!process.env.VK_TOKEN) {
@@ -37,9 +39,10 @@ vk.updates.on('message_new', createMessageNewHandler({ vk, store }))
 vk.updates.on('message_event', createMessageEventHandler({ vk, store }))
 
 async function main() {
+  await initializeFootballSiteMode()
+  setSiteListPollStop(stopSiteRosterPoll)
   await vk.updates.start()
   startNotifyLoop(vk, store)
-  startSiteRosterPoll(vk, store)
 }
 
 main().catch((e) => {

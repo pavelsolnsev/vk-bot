@@ -1,3 +1,4 @@
+/** Фолбек, если в БД сайта нет строки игрока: имя из профиля ВК. */
 export async function resolveUserNames(vk, cache, userIds) {
   const uniqPositive = [...new Set(userIds)].filter((id) => typeof id === 'number' && id > 0)
   const missing = uniqPositive.filter((id) => !cache.has(id))

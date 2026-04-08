@@ -1,4 +1,8 @@
-import { formatPlayerName } from "./playerName.js";
+import {
+  LIST_NAME_MAX_DISPLAY_WIDTH,
+  stripEmojiFromName,
+  truncateToDisplayWidth,
+} from "./playerName.js";
 
 const TOURNAMENT_ONLINE_URL = "https://tournament.pavelsolntsev.ru/";
 
@@ -156,9 +160,34 @@ function formatInstructionsBlock() {
   );
 }
 
+function ratingIcon(ratingValue) {
+  if (ratingValue < 10) return "⭐";
+  if (ratingValue < 30) return "💫";
+  if (ratingValue < 60) return "✨";
+  if (ratingValue < 100) return "🌠";
+  if (ratingValue < 150) return "💎";
+  return "🏆";
+}
+
+function normalizeRatingValue(rating) {
+  const numeric = Number(rating);
+  if (!Number.isFinite(numeric)) return 0;
+  return Math.round(numeric * 10) / 10;
+}
+
+function formatRatingValue(rating) {
+  const safe = normalizeRatingValue(rating);
+  return Number.isInteger(safe) ? String(safe) : safe.toFixed(1);
+}
+
+function formatRatingLabel(rating) {
+  const safe = normalizeRatingValue(rating);
+  const value = formatRatingValue(safe);
+  return `${ratingIcon(safe)}${value}`;
+}
+
 /**
- * Ссылка на профиль ВК в тексте сообщения (кликабельно в клиентах VK).
- * Не использовать | ] [ в подписи — ломают разбор BBCode.
+ * Ссылка на профиль ВК (BBCode). Не использовать | ] [ в подписи.
  */
 function vkProfileMention(userId, displayLabel) {
   if (typeof userId !== "number" || userId <= 0) return null;
@@ -167,46 +196,49 @@ function vkProfileMention(userId, displayLabel) {
   return `[id${userId}|${safe}]`;
 }
 
-function formatPlayerLine(index, name, isPaid, userId) {
-  const paddedIndex = `${index + 1}`.padStart(2, " ") + ".";
-  const columnName = formatPlayerName(name, 14);
-  const label = columnName.trimEnd();
-  const mention = vkProfileMention(userId, label);
-  if (isPaid) {
-    const body = mention ?? label;
-    return `${paddedIndex} ${body} ✅`;
+function resolveVkUserId(raw) {
+  if (typeof raw === "number" && Number.isFinite(raw)) return raw;
+  if (typeof raw === "string" && raw.trim() !== "") {
+    const n = Number(raw);
+    return Number.isFinite(n) ? n : 0;
   }
-  if (mention) {
-    return `${paddedIndex} ${mention}`;
-  }
-  return `${paddedIndex} ${columnName}`;
+  return 0;
 }
 
-function formatPlayersBlock(names, paid, limit, participantIds) {
-  const header = [`🏆 В игре:`];
-  let playerLines;
-  if (!names.length) {
-    playerLines = [`   — пока никто не записался`];
-  } else {
-    playerLines = names.map((n, i) => {
-      const uid = participantIds?.[i];
-      return `   ${formatPlayerLine(i, n, paid?.[i] === true, uid)}`;
-    });
-  }
+/** Ник (или [id|ник]) + один пробел + иконка и значение рейтинга. */
+function formatPlayerBlockLines(names, paid, ids, ratings) {
+  const list = names ?? [];
+  if (!list.length) return [`   — пока никто не записался`];
 
+  return list.map((n, i) => {
+    const paddedIndex = `${i + 1}`.padStart(2, " ") + ".";
+    const clean =
+      stripEmojiFromName(String(n ?? "").trim()) || "Unknown";
+    const label = truncateToDisplayWidth(clean, LIST_NAME_MAX_DISPLAY_WIDTH);
+    const uid = resolveVkUserId(ids?.[i]);
+    const mention = uid > 0 ? vkProfileMention(uid, label) : null;
+    const namePart = mention ?? label;
+    const ratingLabel = formatRatingLabel(ratings?.[i]);
+    const paidMark = paid?.[i] === true ? " ✅" : "";
+    return `   ${paddedIndex} ${namePart} ${ratingLabel}${paidMark}`;
+  });
+}
+
+function formatPlayersBlock(names, paid, limit, participantIds, participantRatings) {
+  const header = [`🏆 В игре:`];
+  const playerLines = formatPlayerBlockLines(
+    names,
+    paid,
+    participantIds,
+    participantRatings,
+  );
   return [...header, ...playerLines].join("\n") + "\n";
 }
 
-function formatQueueBlock(queueNames, queueIds) {
+function formatQueueBlock(queueNames, queueIds, queueRatings) {
   if (!queueNames?.length) return "";
   const header = [`📢 Очередь:`];
-  const lines = queueNames.map((n, i) => {
-    const paddedIndex = `${i + 1}`.padStart(2, " ") + ".";
-    const columnName = formatPlayerName(n, 14);
-    const mention = vkProfileMention(queueIds?.[i], columnName.trimEnd());
-    const body = mention ?? columnName;
-    return `   ${paddedIndex} ${body}`;
-  });
+  const lines = formatPlayerBlockLines(queueNames, null, queueIds, queueRatings);
   // ведущий перенос, чтобы отделить от блока "В игре"
   return "\n" + [...header, ...lines].join("\n") + "\n";
 }
@@ -233,10 +265,12 @@ export function buildEventListText({
   paid,
   queueNames,
   maxPlayers,
-  /** параллельно names — id пользователя VK (>0); иначе строка без ссылки */
+  /** параллельно names — id VK для [id|…] */
   participantIds,
+  participantRatings,
   /** параллельно queueNames */
   queueIds,
+  queueRatings,
 }) {
   const placeKey = String(place || "")
     .trim()
@@ -270,9 +304,10 @@ export function buildEventListText({
         paid,
         maxPlayers ?? loc?.limit,
         participantIds,
+        participantRatings,
       );
     } else if (block === "queue") {
-      text += formatQueueBlock(queueNames, queueIds);
+      text += formatQueueBlock(queueNames, queueIds, queueRatings);
     } else if (block === "summary") {
       text += formatSummaryBlock(names.length, maxPlayers ?? loc?.limit);
     }

@@ -3,7 +3,11 @@ import { sendCallbackAnswer, vkShowSnackbarEventData } from '../../vk/callbackAn
 import { joinEvent, leaveEvent } from '../../services/roster.js'
 import { normalizeButtonPayload } from './normalizeButtonPayload.js'
 import { refreshList } from '../commands/context.js'
-import { notifyPromotedToMain } from '../../services/dmNotifications.js'
+import {
+  notifyPromotedToMain,
+  notifyAdminsPlayerJoined,
+  notifyAdminsPlayerLeft,
+} from '../../services/dmNotifications.js'
 import { syncFootballAfterJoin } from '../../services/footballRosterSync.js'
 import { removePlayerFromFootballSite } from '../../services/footballApi.js'
 
@@ -36,6 +40,13 @@ export async function handleEventButton({ vk, store, ctx }) {
     } else if (res?.status === 'queue' && !rolledBack) {
       snackbarText = '📢 Вы записаны в очередь.'
     }
+    if ((res?.status === 'main' || res?.status === 'queue') && !rolledBack) {
+      await notifyAdminsPlayerJoined(vk, {
+        userId: ctx.userId,
+        source: 'play_button',
+        rosterStatus: res.status,
+      })
+    }
   } else if (payload.cmd === 'leave') {
     const uid = ctx.userId
     const inRoster = event.participants.has(uid) || event.queue.has(uid)
@@ -51,6 +62,11 @@ export async function handleEventButton({ vk, store, ctx }) {
         if (res?.promoted?.length) {
           await notifyPromotedToMain(vk, res.promoted)
         }
+        await notifyAdminsPlayerLeft(vk, {
+          userId: uid,
+          source: 'leave_button',
+          leftFrom: res.leftFrom,
+        })
       }
     }
   }
