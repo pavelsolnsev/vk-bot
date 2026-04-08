@@ -21,6 +21,12 @@ If the bot or this repo **interacts with** [https://tournament.pavelsolntsev.ru/
 
 Use that project as the source of truth for how the site works, endpoints, models, and conventions unless this repo explicitly duplicates them.
 
+## Telegram parity — reference implementation
+
+If a task is related to implementation or behavior analogous to Telegram, use solutions from this repository as the primary reference during search and analysis:
+
+- [pavelsolnsev/telegram-bot](https://github.com/pavelsolnsev/telegram-bot)
+
 ## Buttons and text commands — same behavior
 
 When the bot exposes **the same user action** through more than one entry point (for example a **keyboard / callback button** and a **text command**, or payload vs typed command), **implement the full behavior for every path**:
