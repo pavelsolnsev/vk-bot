@@ -3,7 +3,7 @@ import { fetchFootballSiteRosterSnapshot, ackVkListCloseRequest, unregisterVkLis
 import { applySiteRosterToEvent } from './applySiteRosterToEvent.js'
 import { refreshListForEvent } from '../handlers/commands/context.js'
 import { runCloseEvent } from '../handlers/commands/closeEvent.js'
-import { sendTournamentLiveNotice } from '../vk/tournamentLiveNotice.js'
+import { deleteLiveNoticeMessage, sendTournamentLiveNotice } from '../vk/tournamentLiveNotice.js'
 
 const DEFAULT_INTERVAL_MS = 22_000
 const POLL_DEBUG = 'siteRosterPoll/debug'
@@ -156,13 +156,21 @@ export async function runSiteRosterPollTick(vk, store) {
     pollDebug('тик: первый снимок matchStatus — уведомление live не шлём (старт поллинга)', { matchStatus })
   } else if (ev.lastSiteMatchStatus !== 'live' && matchStatus === 'live') {
     try {
-      await sendTournamentLiveNotice(vk, peerId, { homeTeam: liveHomeTeam, awayTeam: liveAwayTeam })
+      await sendTournamentLiveNotice(vk, peerId, ev, { homeTeam: liveHomeTeam, awayTeam: liveAwayTeam })
       pollDebug('тик: отправлено уведомление «Игра началась»', { peerId })
     } catch (err) {
       logError('siteRosterPoll/liveNotice', err, { peerId, gameEventId })
     }
     ev.lastSiteMatchStatus = matchStatus
   } else if (ev.lastSiteMatchStatus !== matchStatus) {
+    if (ev.lastSiteMatchStatus === 'live' && matchStatus !== 'live') {
+      try {
+        await deleteLiveNoticeMessage(vk, { peerId, event: ev })
+        pollDebug('тик: уведомление «Игра началась» удалено (матч не live)', { peerId })
+      } catch (err) {
+        logError('siteRosterPoll/deleteLiveNotice', err, { peerId, gameEventId })
+      }
+    }
     ev.lastSiteMatchStatus = matchStatus
     pollDebug('тик: matchStatus обновлён', { matchStatus })
   }

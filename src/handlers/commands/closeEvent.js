@@ -1,5 +1,6 @@
 import { logError } from '../../utils/botLog.js'
 import { deleteListMessage } from '../../vk/listMessage.js'
+import { deleteLiveNoticeMessage } from '../../vk/tournamentLiveNotice.js'
 import { unregisterVkListLinkOnFootballSite } from '../../services/footballApi.js'
 
 let stopSiteListPoll = () => {}
@@ -19,6 +20,11 @@ export async function runCloseEvent({ vk, store, peerId }) {
       await deleteListMessage(vk, { peerId, event })
     } catch {
       // закрываем состояние даже если удалить сообщение не удалось
+    }
+    try {
+      await deleteLiveNoticeMessage(vk, { peerId, event })
+    } catch {
+      /* то же: не блокируем закрытие списка */
     }
   }
 

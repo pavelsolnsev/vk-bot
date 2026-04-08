@@ -261,10 +261,6 @@ function getDbPool() {
   return dbPool
 }
 
-function logRatingsSource(source, requested, found) {
-  console.log(`[${S}/ratings] source=${source} requested=${requested} found=${found}`)
-}
-
 function getRatingsCacheTtlMs() {
   const ttl = Number(process.env.FOOTBALL_RATINGS_CACHE_TTL_MS || 20_000)
   return Number.isFinite(ttl) && ttl > 0 ? ttl : 20_000
@@ -637,7 +633,6 @@ async function fetchVkRatingsViaApi({ uniqueIds }) {
 
     const payload = await response.json()
     const mapped = mapRatingsRows(payload?.ratings)
-    logRatingsSource('api', uniqueIds.length, mapped.ratings.size)
     return mapped
   } catch (err) {
     logFootballApiError(`${S}/ratings`, err, { count: uniqueIds.length })
@@ -654,7 +649,6 @@ async function fetchVkRatingsViaDb({ uniqueIds }) {
     const sql = `SELECT vk_user_id, rating, name, username FROM players WHERE vk_user_id IN (${placeholders})`
     const [rows] = await pool.query(sql, uniqueIds)
     const mapped = mapRatingsRows(rows)
-    logRatingsSource('db', uniqueIds.length, mapped.ratings.size)
     return mapped
   } catch (err) {
     logFootballApiError(`${S}/ratings-db`, err, { count: uniqueIds.length })

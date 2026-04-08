@@ -32,6 +32,9 @@ export function createEventStore() {
         listConversationMessageId: null,
         /** обычный message_id — запасной идентификатор для messages.edit */
         listMessageId: null,
+        /** отдельное сообщение «Игра началась» — conversation_message_id для удаления после матча */
+        liveNoticeConversationMessageId: null,
+        liveNoticeMessageId: null,
         /** vkId → epoch ms: не выкидываем из списка, пока сайт не отдаст этого человека в снимке (гонка poll vs join). */
         siteSyncGraceUntilByVkId: new Map(),
       }
