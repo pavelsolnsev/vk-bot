@@ -4,8 +4,6 @@ import {
   truncateToDisplayWidth,
 } from "./playerName.js";
 
-const TOURNAMENT_ONLINE_URL = "https://tournament.pavelsolntsev.ru/";
-
 // Локации и их блоки, по аналогии с telegram-bot/utils/sendPlayerList.js
 const locations = {
   kz: {
@@ -127,7 +125,7 @@ function formatLocationBlock(loc) {
 }
 
 function formatTournamentTitle() {
-  return "⚡  ТУРНИР РФОИ  ⚡\n";
+  return "⚡  ТУРНИР РФОИ  ⚡\n\n";
 }
 
 function formatExtraBlock(loc) {
@@ -155,8 +153,8 @@ function formatInstructionsBlock() {
     `ℹ️Инфо:    https://football.pavelsolntsev.ru/info\n` +
     `📣ВКонтакте: https://vk.com/rmsfootball\n\n` +
     `🕹 КАК ЗАПИСАТЬСЯ\n` +
-    `▸ Нажми кнопку Играть\n` +
-    `▸ Нажми кнопку Выйти\n\n`
+    `▸ Нажми кнопку Играть или напиши в чат +\n` +
+    `▸ Нажми кнопку Выйти или напиши в чат -\n\n`
   );
 }
 
@@ -250,7 +248,6 @@ function formatSummaryBlock(count, limit) {
   } else {
     block = `\n📊 Игроков: ${count}\n`;
   }
-  block += `\n📺 Следи за ходом турнира в режиме онлайн: ${TOURNAMENT_ONLINE_URL}\n`;
   return block;
 }
 
