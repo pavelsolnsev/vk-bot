@@ -206,10 +206,10 @@ function resolveVkUserId(raw) {
 /** Ник (или [id|ник]) + один пробел + иконка и значение рейтинга. */
 function formatPlayerBlockLines(names, paid, ids, ratings) {
   const list = names ?? [];
-  if (!list.length) return [`   — пока никто не записался`];
+  if (!list.length) return [`— пока никто не записался`];
 
   return list.map((n, i) => {
-    const paddedIndex = `${i + 1}`.padStart(2, " ") + ".";
+    const indexPrefix = `${i + 1}.`;
     const clean =
       stripEmojiFromName(String(n ?? "").trim()) || "Unknown";
     const label = truncateToDisplayWidth(clean, LIST_NAME_MAX_DISPLAY_WIDTH);
@@ -218,7 +218,7 @@ function formatPlayerBlockLines(names, paid, ids, ratings) {
     const namePart = mention ?? label;
     const ratingLabel = formatRatingLabel(ratings?.[i]);
     const paidMark = paid?.[i] === true ? " ✅" : "";
-    return `   ${paddedIndex} ${namePart} ${ratingLabel}${paidMark}`;
+    return `${indexPrefix} ${namePart} ${ratingLabel}${paidMark}`;
   });
 }
 

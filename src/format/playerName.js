@@ -75,7 +75,7 @@ export function padToDisplayWidth(str, targetWidth, padChar = ' ') {
 }
 
 /** Фиксированная макс. ширина подписи игрока в списке (одинаковая обрезка для всех). */
-export const LIST_NAME_MAX_DISPLAY_WIDTH = 14
+export const LIST_NAME_MAX_DISPLAY_WIDTH = 16
 
 /**
  * Сжимает имя для колонки (legacy по числу символов; для новых списков лучше truncateToDisplayWidth).
