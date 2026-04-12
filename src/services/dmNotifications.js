@@ -2,16 +2,6 @@ import { sendPrivateMessage } from '../vk/sendPrivateMessage.js'
 import { getAdminVkIds } from '../auth/admin.js'
 import { fetchVkRatingsOnFootballSite } from './footballApi.js'
 
-/** @param {'plus' | 'play_button'} source */
-function joinSourceLabel(source) {
-  return source === 'plus' ? 'команда «+» в чате' : 'кнопка «Играть»'
-}
-
-/** @param {'minus' | 'leave_button'} source */
-function leaveSourceLabel(source) {
-  return source === 'minus' ? 'команда «-» в чате' : 'кнопка «Выйти»'
-}
-
 /** Подпись как в списке ВК: username из БД сайта; иначе «человеческий» domain ВК (не idNNN). */
 function pickNicknameForAdminLine(siteLabel, vkDomain, userId) {
   const fromSite = siteLabel != null && String(siteLabel).trim() !== '' ? String(siteLabel).trim() : ''
@@ -21,49 +11,80 @@ function pickNicknameForAdminLine(siteLabel, vkDomain, userId) {
   return `id${userId}`
 }
 
-/** Ник и имя: ник из сайта (как в турнирном списке), имя из users.get. */
+function isSkippableDisplayName(s) {
+  if (s === false) return true
+  const t = String(s ?? '').trim()
+  if (!t) return true
+  if (t === '—' || t === '-') return true
+  if (/^@?unknown$/i.test(t)) return true
+  return false
+}
+
+function namesEquivalent(a, b) {
+  return String(a).trim().toLowerCase() === String(b).trim().toLowerCase()
+}
+
+/** Строки «Имя:» (сайт/domain) и «Ник:» (ВК имя+фамилия) для админки; пустые и unknown не показываем; при совпадении — одна строка. */
 async function vkUserNameLines(vk, userId) {
   let siteLabel = ''
+  let listLabelFromDbName = false
   try {
-    const pack = await fetchVkRatingsOnFootballSite({ vkUserIds: [userId] })
-    siteLabel = pack?.siteDisplayByVkId?.get(userId) ?? ''
+    const pack = await fetchVkRatingsOnFootballSite({
+      vkUserIds: [userId],
+      bypassCache: true,
+    })
+    const raw = pack?.siteDisplayByVkId?.get(userId)
+    if (raw !== false && raw != null) siteLabel = String(raw).trim()
+    listLabelFromDbName = pack?.listLabelFromDbNameByVkId?.get(userId) === true
   } catch {
     // сайт недоступен — только ВК
   }
 
+  let firstName = ''
+  let lastName = ''
+  let rawDomain = null
   try {
     const users = await vk.api.users.get({ user_ids: [userId], fields: 'domain' })
     const u = users?.[0]
-    if (!u) {
-      return [`Ник: ${pickNicknameForAdminLine(siteLabel, null, userId)}`, 'Имя: —']
+    if (u) {
+      firstName = u.first_name ?? ''
+      lastName = u.last_name ?? ''
+      rawDomain =
+        u.domain != null && String(u.domain).trim() !== '' ? String(u.domain).trim() : null
     }
-    const name = `${u.first_name ?? ''} ${u.last_name ?? ''}`.trim() || '—'
-    const rawDomain =
-      u.domain != null && String(u.domain).trim() !== '' ? String(u.domain).trim() : null
-    const nick = pickNicknameForAdminLine(siteLabel, rawDomain, userId)
-    return [`Ник: ${nick}`, `Имя: ${name}`]
   } catch {
-    return [`Ник: ${pickNicknameForAdminLine(siteLabel, null, userId)}`, 'Имя: —']
+    // только сайт / id
   }
+
+  const name = `${firstName} ${lastName}`.trim()
+  const nick = pickNicknameForAdminLine(siteLabel, rawDomain, userId)
+
+  const nickOk = !isSkippableDisplayName(nick)
+  const nameOk = !isSkippableDisplayName(name)
+
+  if (listLabelFromDbName && nickOk) {
+    return [`Имя: ${nick}`]
+  }
+
+  if (nickOk && nameOk && namesEquivalent(nick, name)) {
+    return [`Ник: ${name}`]
+  }
+  const out = []
+  if (nickOk) out.push(`Имя: ${nick}`)
+  if (nameOk) out.push(`Ник: ${name}`)
+  return out
 }
 
 /**
  * Уведомить всех админов (VK_ADMIN_IDS) в ЛС о записи игрока.
- * @param {'plus' | 'play_button'} params.source
- * @param {'main' | 'queue'} params.rosterStatus
+ * Доп. поля в params (source, rosterStatus) оставлены у вызывающего кода, в текст не входят.
  */
-export async function notifyAdminsPlayerJoined(vk, { userId, source, rosterStatus }) {
+export async function notifyAdminsPlayerJoined(vk, { userId }) {
   const admins = getAdminVkIds()
   if (!admins.length || typeof userId !== 'number' || userId <= 0) return
 
-  const rosterRu = rosterStatus === 'main' ? 'основной состав' : 'очередь'
   const whoLines = await vkUserNameLines(vk, userId)
-  const lines = [
-    '🟢 Игрок записался в список',
-    ...whoLines,
-    `Способ: ${joinSourceLabel(source)}`,
-    `Куда: ${rosterRu}`,
-  ]
+  const lines = ['🟢 Игрок записался в список', ...whoLines]
 
   const message = lines.join('\n')
   await Promise.all(
@@ -72,22 +93,16 @@ export async function notifyAdminsPlayerJoined(vk, { userId, source, rosterStatu
 }
 
 /**
- * @param {'minus' | 'leave_button'} params.source
- * @param {'main' | 'queue'} params.leftFrom
+ * Доп. поля в params (source, leftFrom) оставлены у вызывающего кода, в текст не входят.
+ * @param {'main' | 'queue'} params.leftFrom — по-прежнему валидируется.
  */
-export async function notifyAdminsPlayerLeft(vk, { userId, source, leftFrom }) {
+export async function notifyAdminsPlayerLeft(vk, { userId, leftFrom }) {
   const admins = getAdminVkIds()
   if (!admins.length || typeof userId !== 'number' || userId <= 0) return
   if (leftFrom !== 'main' && leftFrom !== 'queue') return
 
-  const whereRu = leftFrom === 'main' ? 'основной состав' : 'очередь'
   const whoLines = await vkUserNameLines(vk, userId)
-  const lines = [
-    '🔴 Игрок вышел из списка',
-    ...whoLines,
-    `Способ: ${leaveSourceLabel(source)}`,
-    `Был в: ${whereRu}`,
-  ]
+  const lines = ['🔴 Игрок вышел из списка', ...whoLines]
 
   const message = lines.join('\n')
   await Promise.all(
