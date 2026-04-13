@@ -147,16 +147,13 @@ export async function runSiteRosterPollTick(vk, store) {
     snap.matchStatus === 'live' || snap.matchStatus === 'finished' || snap.matchStatus === 'upcoming'
       ? snap.matchStatus
       : 'upcoming'
-  const liveHomeTeam = typeof snap.liveHomeTeam === 'string' ? snap.liveHomeTeam : ''
-  const liveAwayTeam = typeof snap.liveAwayTeam === 'string' ? snap.liveAwayTeam : ''
-
   if (!ev._siteMatchPollBootstrapped) {
     ev._siteMatchPollBootstrapped = true
     ev.lastSiteMatchStatus = matchStatus
     pollDebug('тик: первый снимок matchStatus — уведомление live не шлём (старт поллинга)', { matchStatus })
   } else if (ev.lastSiteMatchStatus !== 'live' && matchStatus === 'live') {
     try {
-      await sendTournamentLiveNotice(vk, peerId, ev, { homeTeam: liveHomeTeam, awayTeam: liveAwayTeam })
+      await sendTournamentLiveNotice(vk, peerId, ev)
       pollDebug('тик: отправлено уведомление «Игра началась»', { peerId })
     } catch (err) {
       logError('siteRosterPoll/liveNotice', err, { peerId, gameEventId })

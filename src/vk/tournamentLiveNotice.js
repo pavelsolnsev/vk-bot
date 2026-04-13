@@ -61,15 +61,11 @@ export async function deleteLiveNoticeMessage(vk, { peerId, event }) {
  * @param {import('vk-io').VK} vk
  * @param {number} peerId
  * @param {Record<string, unknown>} event — событие из store
- * @param {{ homeTeam?: string, awayTeam?: string }} [opts]
  */
-export async function sendTournamentLiveNotice(vk, peerId, event, opts = {}) {
+export async function sendTournamentLiveNotice(vk, peerId, event) {
   const communityUrl = 'https://vk.com/rmsfootball'
-  const home = String(opts.homeTeam || '').trim()
-  const away = String(opts.awayTeam || '').trim()
-  const vsLine = home && away ? `\n\n${home} — ${away}` : ''
   const body =
-    `⚽ Игра началась!${vsLine}\n\n` +
+    `⚽ Игра началась!\n\n` +
     `📣 Трансляция игр в сообществе: ${communityUrl}\n\n` +
     `📊 Счёт и статистика — на сайте ${getTournamentPublicUrl()}/\n` +
     `или по кнопке ниже.`
