@@ -80,7 +80,7 @@ async function vkUserNameLines(vk, userId) {
  * Доп. поля в params (source, rosterStatus) оставлены у вызывающего кода, в текст не входят.
  */
 export async function notifyAdminsPlayerJoined(vk, { userId }) {
-  const admins = getAdminVkIds()
+  const admins = getAdminVkIds().filter((adminId) => adminId !== userId)
   if (!admins.length || typeof userId !== 'number' || userId <= 0) return
 
   const whoLines = await vkUserNameLines(vk, userId)
@@ -97,7 +97,7 @@ export async function notifyAdminsPlayerJoined(vk, { userId }) {
  * @param {'main' | 'queue'} params.leftFrom — по-прежнему валидируется.
  */
 export async function notifyAdminsPlayerLeft(vk, { userId, leftFrom }) {
-  const admins = getAdminVkIds()
+  const admins = getAdminVkIds().filter((adminId) => adminId !== userId)
   if (!admins.length || typeof userId !== 'number' || userId <= 0) return
   if (leftFrom !== 'main' && leftFrom !== 'queue') return
 
