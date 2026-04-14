@@ -219,6 +219,11 @@ function mapRatingsRows(rows) {
   return { ratings, siteDisplayByVkId, listLabelFromDbNameByVkId }
 }
 
+function sanitizeProfileText(v) {
+  const t = v != null ? String(v).trim() : ''
+  return t || null
+}
+
 /** Есть строка рейтинга по каждому из запрошенных vk id (иначе фолбэк на API). */
 function isRatingsPackCompleteForIds(pack, ids) {
   if (!pack?.ratings || !Array.isArray(ids) || !ids.length) return false
@@ -314,4 +319,68 @@ export async function fetchVkRatingsOnFootballSite({ vkUserIds, bypassCache = fa
 
   // Если источник временно недоступен, отдаем хотя бы свежие кэшированные данные.
   return cachedIds.size ? cachedPack : null
+}
+
+/**
+ * Профиль игрока из БД сайта по vk_user_id.
+ * Возвращаем «сырые» поля name/username без кэша, чтобы ручные правки в БД были видны сразу.
+ * @param {{ vkUserId: number }} params
+ * @returns {Promise<null | { name: string | null, username: string | null }>}
+ */
+export async function fetchVkPlayerProfileOnFootballSite({ vkUserId }) {
+  const id = Number(vkUserId)
+  if (!Number.isFinite(id) || id === 0) return null
+
+  // Сначала читаем БД напрямую — так изменения в таблице players видны сразу.
+  const pool = getDbPool()
+  if (pool) {
+    try {
+      const [rows] = await pool.query(
+        'SELECT name, username FROM players WHERE vk_user_id = ? LIMIT 1',
+        [id],
+      )
+      const row = Array.isArray(rows) ? rows[0] : null
+      if (row && typeof row === 'object') {
+        return {
+          name: sanitizeProfileText(row.name),
+          username: sanitizeProfileText(row.username),
+        }
+      }
+    } catch (err) {
+      logFootballApiError(`${S}/profile-db`, err, { vkUserId: id })
+    }
+  }
+
+  // Если прямого DB-коннекта нет — берём тот же профиль через API сайта.
+  const auth = getFootballApiAuth()
+  if (!auth) return null
+  const { apiUrl, token } = auth
+  try {
+    const response = await fetchWithTimeout(
+      `${apiUrl}/api/vk/ratings?vk_user_ids=${encodeURIComponent(String(id))}&_=${Date.now()}`,
+      {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Cache-Control': 'no-cache',
+          Pragma: 'no-cache',
+        },
+        cache: 'no-store',
+      },
+    )
+    if (!response.ok) {
+      await logHttpNotOk(S, response, 'GET /api/vk/ratings (profile)')
+      return null
+    }
+    const payload = await response.json()
+    const row = Array.isArray(payload?.ratings) ? payload.ratings[0] : null
+    if (!row || typeof row !== 'object') return null
+    return {
+      name: sanitizeProfileText(row.name),
+      username: sanitizeProfileText(row.username),
+    }
+  } catch (err) {
+    logFootballApiError(`${S}/profile-api`, err, { vkUserId: id })
+    return null
+  }
 }

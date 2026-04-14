@@ -1,15 +1,6 @@
 import { sendPrivateMessage } from '../vk/sendPrivateMessage.js'
 import { getAdminVkIds } from '../auth/admin.js'
-import { fetchVkRatingsOnFootballSite } from './footballApi.js'
-
-/** Подпись как в списке ВК: username из БД сайта; иначе «человеческий» domain ВК (не idNNN). */
-function pickNicknameForAdminLine(siteLabel, vkDomain, userId) {
-  const fromSite = siteLabel != null && String(siteLabel).trim() !== '' ? String(siteLabel).trim() : ''
-  if (fromSite) return fromSite
-  const d = vkDomain != null && String(vkDomain).trim() !== '' ? String(vkDomain).trim() : ''
-  if (d && !/^id\d+$/i.test(d)) return d
-  return `id${userId}`
-}
+import { fetchVkPlayerProfileOnFootballSite } from './footballApi.js'
 
 function isSkippableDisplayName(s) {
   if (s === false) return true
@@ -20,59 +11,70 @@ function isSkippableDisplayName(s) {
   return false
 }
 
-function namesEquivalent(a, b) {
-  return String(a).trim().toLowerCase() === String(b).trim().toLowerCase()
+function sanitizeDbName(v) {
+  const t = String(v ?? '').trim()
+  if (!t) return null
+  return t
 }
 
-/** Строки «Имя:» (сайт/domain) и «Ник:» (ВК имя+фамилия) для админки; пустые и unknown не показываем; при совпадении — одна строка. */
+function sanitizeDbUsername(v) {
+  const t = String(v ?? '').trim()
+  if (!t) return null
+  if (/^@?unknown$/i.test(t)) return null
+  return t
+}
+
+/**
+ * Строки имени для админского уведомления.
+ * Источник только БД сайта: name -> «Ник», username -> «Имя».
+ */
+function buildNameLinesFromDbProfile(profile) {
+  const name = sanitizeDbName(profile?.name)
+  const username = sanitizeDbUsername(profile?.username)
+
+  // 1) Оба поля есть: показываем две строки в фиксированном порядке.
+  if (name && username) {
+    return [`name: ${name}`, `username: ${username}`]
+  }
+  // 2) Только username: показываем только «Имя».
+  if (!name && username) {
+    return [`username: ${username}`]
+  }
+  // 3) Только name: показываем только «Ник».
+  if (name && !username) {
+    return [`name: ${name}`]
+  }
+  return []
+}
+
+/** Строки для уведомления: сначала БД, если пусто — мягкий fallback на VK имя. */
 async function vkUserNameLines(vk, userId) {
-  let siteLabel = ''
-  let listLabelFromDbName = false
+  // Берём профиль напрямую с сайта без кэша, чтобы ручные правки в БД отражались сразу.
   try {
-    const pack = await fetchVkRatingsOnFootballSite({
-      vkUserIds: [userId],
-      bypassCache: true,
-    })
-    const raw = pack?.siteDisplayByVkId?.get(userId)
-    if (raw !== false && raw != null) siteLabel = String(raw).trim()
-    listLabelFromDbName = pack?.listLabelFromDbNameByVkId?.get(userId) === true
+    const profile = await fetchVkPlayerProfileOnFootballSite({ vkUserId: userId })
+    const dbLines = buildNameLinesFromDbProfile(profile)
+    if (dbLines.length) return dbLines
   } catch {
-    // сайт недоступен — только ВК
+    // Если сайт недоступен — пробуем fallback ниже.
   }
 
+  // Fallback только когда в БД нет валидных полей или сайт недоступен.
   let firstName = ''
   let lastName = ''
-  let rawDomain = null
   try {
-    const users = await vk.api.users.get({ user_ids: [userId], fields: 'domain' })
+    const users = await vk.api.users.get({ user_ids: [userId] })
     const u = users?.[0]
     if (u) {
       firstName = u.first_name ?? ''
       lastName = u.last_name ?? ''
-      rawDomain =
-        u.domain != null && String(u.domain).trim() !== '' ? String(u.domain).trim() : null
     }
   } catch {
-    // только сайт / id
+    // Ничего не делаем — ниже вернём пусто.
   }
 
   const name = `${firstName} ${lastName}`.trim()
-  const nick = pickNicknameForAdminLine(siteLabel, rawDomain, userId)
-
-  const nickOk = !isSkippableDisplayName(nick)
-  const nameOk = !isSkippableDisplayName(name)
-
-  if (listLabelFromDbName && nickOk) {
-    return [`Имя: ${nick}`]
-  }
-
-  if (nickOk && nameOk && namesEquivalent(nick, name)) {
-    return [`Ник: ${name}`]
-  }
-  const out = []
-  if (nickOk) out.push(`Имя: ${nick}`)
-  if (nameOk) out.push(`Ник: ${name}`)
-  return out
+  if (isSkippableDisplayName(name)) return []
+  return [`username: ${name}`]
 }
 
 /**
@@ -80,11 +82,13 @@ async function vkUserNameLines(vk, userId) {
  * Доп. поля в params (source, rosterStatus) оставлены у вызывающего кода, в текст не входят.
  */
 export async function notifyAdminsPlayerJoined(vk, { userId }) {
-  const admins = getAdminVkIds().filter((adminId) => adminId !== userId)
+  // Отправляем уведомление всем админам, включая самого игрока-админа.
+  // Это нужно, чтобы админ видел подтверждение в ЛС, даже если он записался сам.
+  const admins = getAdminVkIds()
   if (!admins.length || typeof userId !== 'number' || userId <= 0) return
 
   const whoLines = await vkUserNameLines(vk, userId)
-  const lines = ['🟢 Игрок записался в список', ...whoLines]
+  const lines = ['➕ Игрок записался в список', ...whoLines]
 
   const message = lines.join('\n')
   await Promise.all(
@@ -97,12 +101,13 @@ export async function notifyAdminsPlayerJoined(vk, { userId }) {
  * @param {'main' | 'queue'} params.leftFrom — по-прежнему валидируется.
  */
 export async function notifyAdminsPlayerLeft(vk, { userId, leftFrom }) {
-  const admins = getAdminVkIds().filter((adminId) => adminId !== userId)
+  // Как и при join: уведомляем всех админов, включая самого игрока-админа.
+  const admins = getAdminVkIds()
   if (!admins.length || typeof userId !== 'number' || userId <= 0) return
   if (leftFrom !== 'main' && leftFrom !== 'queue') return
 
   const whoLines = await vkUserNameLines(vk, userId)
-  const lines = ['🔴 Игрок вышел из списка', ...whoLines]
+  const lines = ['➖ Игрок вышел из списка', ...whoLines]
 
   const message = lines.join('\n')
   await Promise.all(
