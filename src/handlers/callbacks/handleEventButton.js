@@ -41,11 +41,16 @@ export async function handleEventButton({ vk, store, ctx }) {
       snackbarText = '📢 Вы записаны в очередь.'
     }
     if ((res?.status === 'main' || res?.status === 'queue') && !rolledBack) {
-      await notifyAdminsPlayerJoined(vk, {
-        userId: ctx.userId,
-        source: 'play_button',
-        rosterStatus: res.status,
-      })
+      // Ошибка ЛС админам не должна ломать нажатие кнопки «Играть».
+      try {
+        await notifyAdminsPlayerJoined(vk, {
+          userId: ctx.userId,
+          source: 'play_button',
+          rosterStatus: res.status,
+        })
+      } catch (err) {
+        logError('handleEventButton/notifyJoined', err, { userId: ctx.userId })
+      }
     }
   } else if (payload.cmd === 'leave') {
     const uid = ctx.userId
@@ -62,11 +67,16 @@ export async function handleEventButton({ vk, store, ctx }) {
         if (res?.promoted?.length) {
           await notifyPromotedToMain(vk, res.promoted)
         }
-        await notifyAdminsPlayerLeft(vk, {
-          userId: uid,
-          source: 'leave_button',
-          leftFrom: res.leftFrom,
-        })
+        // Ошибка ЛС админам не должна ломать нажатие кнопки «Выйти».
+        try {
+          await notifyAdminsPlayerLeft(vk, {
+            userId: uid,
+            source: 'leave_button',
+            leftFrom: res.leftFrom,
+          })
+        } catch (err) {
+          logError('handleEventButton/notifyLeft', err, { userId: uid })
+        }
       }
     }
   }

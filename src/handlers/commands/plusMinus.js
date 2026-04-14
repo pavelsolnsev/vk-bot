@@ -9,6 +9,7 @@ import {
 import { syncFootballAfterJoin } from '../../services/footballRosterSync.js'
 import { removePlayerFromFootballSite } from '../../services/footballApi.js'
 import { sendEphemeral } from '../../vk/sendEphemeral.js'
+import { logError } from '../../utils/botLog.js'
 
 export async function tryPlusMinus({ vk, store, context, event, text, senderId }) {
   if (text !== '+' && text !== '-') return false
@@ -30,11 +31,16 @@ export async function tryPlusMinus({ vk, store, context, event, text, senderId }
       await notifyJoinedQueue(vk, senderId)
     }
     if ((res?.status === 'main' || res?.status === 'queue') && !rolledBack) {
-      await notifyAdminsPlayerJoined(vk, {
-        userId: senderId,
-        source: 'plus',
-        rosterStatus: res.status,
-      })
+      // Ошибка ЛС админам не должна ломать запись игрока в список.
+      try {
+        await notifyAdminsPlayerJoined(vk, {
+          userId: senderId,
+          source: 'plus',
+          rosterStatus: res.status,
+        })
+      } catch (err) {
+        logError('plusMinus/notifyJoined', err, { senderId })
+      }
     }
   }
   if (text === '-') {
@@ -50,11 +56,16 @@ export async function tryPlusMinus({ vk, store, context, event, text, senderId }
         if (res?.promoted?.length) {
           await notifyPromotedToMain(vk, res.promoted)
         }
-        await notifyAdminsPlayerLeft(vk, {
-          userId: senderId,
-          source: 'minus',
-          leftFrom: res.leftFrom,
-        })
+        // Ошибка ЛС админам не должна ломать выход игрока из списка.
+        try {
+          await notifyAdminsPlayerLeft(vk, {
+            userId: senderId,
+            source: 'minus',
+            leftFrom: res.leftFrom,
+          })
+        } catch (err) {
+          logError('plusMinus/notifyLeft', err, { senderId })
+        }
       }
     }
   }

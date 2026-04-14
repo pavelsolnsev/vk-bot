@@ -1,6 +1,7 @@
 import { sendPrivateMessage } from '../vk/sendPrivateMessage.js'
 import { getAdminVkIds } from '../auth/admin.js'
 import { fetchVkPlayerProfileOnFootballSite } from './footballApi.js'
+import { logError } from '../utils/botLog.js'
 
 function isSkippableDisplayName(s) {
   if (s === false) return true
@@ -77,6 +78,30 @@ async function vkUserNameLines(vk, userId) {
   return [`username: ${name}`]
 }
 
+async function sendAdminBroadcast(vk, adminIds, message, scope) {
+  // Promise.allSettled: падение одной ЛС не должно ломать всё уведомление.
+  const results = await Promise.allSettled(
+    adminIds.map((adminId) => sendPrivateMessage(vk, adminId, message, { dont_parse_links: 1 })),
+  )
+  for (const [idx, r] of results.entries()) {
+    if (r.status === 'rejected') {
+      logError(scope, r.reason, { adminId: adminIds[idx] })
+    }
+  }
+}
+
+async function sendUserBroadcast(vk, userIds, message, scope) {
+  // Массовая отправка в ЛС без падения всего потока из-за одного user_id.
+  const results = await Promise.allSettled(
+    userIds.map((id) => sendPrivateMessage(vk, id, message)),
+  )
+  for (const [idx, r] of results.entries()) {
+    if (r.status === 'rejected') {
+      logError(scope, r.reason, { userId: userIds[idx] })
+    }
+  }
+}
+
 /**
  * Уведомить всех админов (VK_ADMIN_IDS) в ЛС о записи игрока.
  * Доп. поля в params (source, rosterStatus) оставлены у вызывающего кода, в текст не входят.
@@ -87,13 +112,17 @@ export async function notifyAdminsPlayerJoined(vk, { userId }) {
   const admins = getAdminVkIds()
   if (!admins.length || typeof userId !== 'number' || userId <= 0) return
 
-  const whoLines = await vkUserNameLines(vk, userId)
+  let whoLines = []
+  try {
+    // Если чтение профиля/ВК упало — шлём хотя бы базовый заголовок, без падения бота.
+    whoLines = await vkUserNameLines(vk, userId)
+  } catch (err) {
+    logError('notifyAdminsPlayerJoined/nameLines', err, { userId })
+  }
   const lines = ['➕ Игрок записался в список', ...whoLines]
 
   const message = lines.join('\n')
-  await Promise.all(
-    admins.map((adminId) => sendPrivateMessage(vk, adminId, message, { dont_parse_links: 1 })),
-  )
+  await sendAdminBroadcast(vk, admins, message, 'notifyAdminsPlayerJoined/send')
 }
 
 /**
@@ -106,23 +135,27 @@ export async function notifyAdminsPlayerLeft(vk, { userId, leftFrom }) {
   if (!admins.length || typeof userId !== 'number' || userId <= 0) return
   if (leftFrom !== 'main' && leftFrom !== 'queue') return
 
-  const whoLines = await vkUserNameLines(vk, userId)
+  let whoLines = []
+  try {
+    // Если чтение профиля/ВК упало — шлём хотя бы базовый заголовок, без падения бота.
+    whoLines = await vkUserNameLines(vk, userId)
+  } catch (err) {
+    logError('notifyAdminsPlayerLeft/nameLines', err, { userId, leftFrom })
+  }
   const lines = ['➖ Игрок вышел из списка', ...whoLines]
 
   const message = lines.join('\n')
-  await Promise.all(
-    admins.map((adminId) => sendPrivateMessage(vk, adminId, message, { dont_parse_links: 1 })),
-  )
+  await sendAdminBroadcast(vk, admins, message, 'notifyAdminsPlayerLeft/send')
 }
 
 export async function notifyPromotedToMain(vk, userIds) {
   const uniq = [...new Set(userIds)].filter((id) => typeof id === 'number' && id > 0)
-  await Promise.all(uniq.map((id) => sendPrivateMessage(vk, id, '🎉 Вы в основном составе!')))
+  await sendUserBroadcast(vk, uniq, '🎉 Вы в основном составе!', 'notifyPromotedToMain/send')
 }
 
 export async function notifyMovedToQueue(vk, userIds) {
   const uniq = [...new Set(userIds)].filter((id) => typeof id === 'number' && id > 0)
-  await Promise.all(uniq.map((id) => sendPrivateMessage(vk, id, '⚠️ Вы перемещены в очередь.')))
+  await sendUserBroadcast(vk, uniq, '⚠️ Вы перемещены в очередь.', 'notifyMovedToQueue/send')
 }
 
 export async function notifyJoinedQueue(vk, userId) {

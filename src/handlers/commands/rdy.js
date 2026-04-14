@@ -1,5 +1,6 @@
 import { Keyboard } from 'vk-io'
 import { sendPrivateMessage } from '../../vk/sendPrivateMessage.js'
+import { logError } from '../../utils/botLog.js'
 
 const TOURNAMENT_URL = 'https://tournament.pavelsolntsev.ru/'
 
@@ -18,11 +19,24 @@ function collectRealPlayerIds(event) {
 export async function runRdy({ vk, context, event }) {
   const keyboard = buildRdyKeyboard()
 
-  await context.send({
-    message: RDY_TEXT,
-    keyboard,
-  })
+  // Ошибка отправки в чат не должна ронять весь обработчик.
+  try {
+    await context.send({
+      message: RDY_TEXT,
+      keyboard,
+    })
+  } catch (err) {
+    logError('rdy/group', err, { peerId: context?.peerId })
+  }
 
   const ids = collectRealPlayerIds(event)
-  await Promise.all(ids.map((userId) => sendPrivateMessage(vk, userId, RDY_TEXT, { keyboard })))
+  // Рассылаем в ЛС безопасно: один неуспех не прерывает остальных.
+  const results = await Promise.allSettled(
+    ids.map((userId) => sendPrivateMessage(vk, userId, RDY_TEXT, { keyboard })),
+  )
+  for (const [idx, r] of results.entries()) {
+    if (r.status === 'rejected') {
+      logError('rdy/private', r.reason, { userId: ids[idx] })
+    }
+  }
 }

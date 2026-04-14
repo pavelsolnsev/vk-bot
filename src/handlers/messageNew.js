@@ -11,155 +11,161 @@ import { tryPlusMinus } from "./commands/plusMinus.js";
 import { tryAddByName } from "./commands/addByName.js";
 import { tryAddTestPlayers } from "./commands/addTestPlayers.js";
 import { runRdy } from "./commands/rdy.js";
+import { logError } from "../utils/botLog.js";
 
 export function createMessageNewHandler({ vk, store }) {
   return async (context) => {
-    // Не реагируем на сообщения от самого сообщества (senderId отрицательный = group).
-    // isOutbox ненадёжен для long poll группы — проверяем senderId.
-    if (context.senderId < 0) return;
+    try {
+      // Не реагируем на сообщения от самого сообщества (senderId отрицательный = group).
+      // isOutbox ненадёжен для long poll группы — проверяем senderId.
+      if (context.senderId < 0) return;
 
-    const textRaw = (context.text || "").trim();
-    const peerId = context.peerId;
-    const senderId = context.senderId;
+      const textRaw = (context.text || "").trim();
+      const peerId = context.peerId;
+      const senderId = context.senderId;
 
-    if (!textRaw) return;
+      if (!textRaw) return;
 
-    // Разрешаем формат вида "@rmsfootball +" (когда пишут в чате с упоминанием сообщества)
-    const text = textRaw.replace(/^@\S+\s+/u, "").trim();
+      // Разрешаем формат вида "@rmsfootball +" (когда пишут в чате с упоминанием сообщества)
+      const text = textRaw.replace(/^@\S+\s+/u, "").trim();
 
-    const admin = isAdmin(senderId);
+      const admin = isAdmin(senderId);
 
-    // Команды, которые могут выполнять все (но сообщение с командой удаляем всегда)
-    const lastEvent = getLastEventOrNull({ store, peerId });
-    if (text === "+" || text === "-") {
-      await deleteIncomingCommandMessage(context);
-      if (!lastEvent) {
-        await sendEphemeral(context, "⚠️ Матч не запущен", 3000);
+      // Команды, которые могут выполнять все (но сообщение с командой удаляем всегда)
+      const lastEvent = getLastEventOrNull({ store, peerId });
+      if (text === "+" || text === "-") {
+        await deleteIncomingCommandMessage(context);
+        if (!lastEvent) {
+          await sendEphemeral(context, "⚠️ Матч не запущен", 3000);
+          return;
+        }
+        await tryPlusMinus({
+          vk,
+          store,
+          context,
+          event: lastEvent,
+          text,
+          senderId,
+        });
         return;
       }
-      await tryPlusMinus({
+
+      // Команда id временно отключена (логика в commands/showMyVkAccount.js).
+
+      // Все остальные команды — только админ (и всегда удаляем сообщение с командой)
+      const isCommandLike =
+        /^rdy$/iu.test(text) ||
+        /^e!$/iu.test(text) ||
+        /^l(\d+)$/iu.test(text) ||
+        /^p(\d+)$/iu.test(text) ||
+        /^up(\d+)$/iu.test(text) ||
+        /^r(\d+)$/iu.test(text) ||
+        /^\+add\s+/iu.test(text) ||
+        /^\+1test$/iu.test(text) ||
+        text.startsWith("s ") ||
+        text.startsWith("start ");
+
+      if (isCommandLike && !admin) {
+        await deleteIncomingCommandMessage(context);
+        await sendEphemeral(context, "⛔ Нет прав", 3000);
+        return;
+      }
+
+      if (/^rdy$/iu.test(text)) {
+        await deleteIncomingCommandMessage(context);
+        if (!lastEvent) {
+          await sendEphemeral(context, "⚠️ Матч не запущен", 3000);
+          return;
+        }
+        await runRdy({ vk, context, event: lastEvent });
+        return;
+      }
+
+      if (/^e!$/iu.test(text)) {
+        await deleteIncomingCommandMessage(context);
+        const closed = await runCloseEvent({ vk, store, peerId });
+        if (!closed) {
+          await sendEphemeral(context, "⚠️ Матч не запущен", 3000);
+        }
+        return;
+      }
+
+      const startResult = await tryStartEvent({
         vk,
         store,
         context,
-        event: lastEvent,
         text,
+        peerId,
         senderId,
       });
-      return;
-    }
+      if (startResult) {
+        await deleteIncomingCommandMessage(context);
+        if (startResult === "already_started") {
+          await sendEphemeral(context, "⚠️ Матч уже запущен", 3000);
+        }
+        return;
+      }
 
-    // Команда id временно отключена (логика в commands/showMyVkAccount.js).
+      const looksLikeStartCommand =
+        /^s\s+/iu.test(text) || /^start\s+/iu.test(text);
 
-    // Все остальные команды — только админ (и всегда удаляем сообщение с командой)
-    const isCommandLike =
-      /^rdy$/iu.test(text) ||
-      /^e!$/iu.test(text) ||
-      /^l(\d+)$/iu.test(text) ||
-      /^p(\d+)$/iu.test(text) ||
-      /^up(\d+)$/iu.test(text) ||
-      /^r(\d+)$/iu.test(text) ||
-      /^\+add\s+/iu.test(text) ||
-      /^\+1test$/iu.test(text) ||
-      text.startsWith("s ") ||
-      text.startsWith("start ");
-
-    if (isCommandLike && !admin) {
-      await deleteIncomingCommandMessage(context);
-      await sendEphemeral(context, "⛔ Нет прав", 3000);
-      return;
-    }
-
-    if (/^rdy$/iu.test(text)) {
-      await deleteIncomingCommandMessage(context);
       if (!lastEvent) {
-        await sendEphemeral(context, "⚠️ Матч не запущен", 3000);
+        if (isCommandLike && !looksLikeStartCommand) {
+          await deleteIncomingCommandMessage(context);
+          await sendEphemeral(context, "⚠️ Матч не запущен", 3000);
+          return;
+        }
+        if (looksLikeStartCommand) {
+          await deleteIncomingCommandMessage(context);
+          await sendEphemeral(
+            context,
+            "⚠️ Формат: s ДД.ММ.ГГГГ ЧЧ:ММ место (пример: s 04.04.2026 18:00 Сатурн) или s prof / s tr",
+            5000,
+          );
+          return;
+        }
         return;
       }
-      await runRdy({ vk, context, event: lastEvent });
-      return;
-    }
 
-    if (/^e!$/iu.test(text)) {
-      await deleteIncomingCommandMessage(context);
-      const closed = await runCloseEvent({ vk, store, peerId });
-      if (!closed) {
-        await sendEphemeral(context, "⚠️ Матч не запущен", 3000);
-      }
-      return;
-    }
-
-    const startResult = await tryStartEvent({
-      vk,
-      store,
-      context,
-      text,
-      peerId,
-      senderId,
-    });
-    if (startResult) {
-      await deleteIncomingCommandMessage(context);
-      if (startResult === "already_started") {
-        await sendEphemeral(context, "⚠️ Матч уже запущен", 3000);
-      }
-      return;
-    }
-
-    const looksLikeStartCommand =
-      /^s\s+/iu.test(text) || /^start\s+/iu.test(text);
-
-    if (!lastEvent) {
-      if (isCommandLike && !looksLikeStartCommand) {
+      if (await tryAddByName({ vk, store, context, event: lastEvent, text })) {
         await deleteIncomingCommandMessage(context);
-        await sendEphemeral(context, "⚠️ Матч не запущен", 3000);
         return;
       }
-      if (looksLikeStartCommand) {
+      if (
+        await tryAddTestPlayers({ vk, store, context, event: lastEvent, text })
+      ) {
         await deleteIncomingCommandMessage(context);
-        await sendEphemeral(
-          context,
-          "⚠️ Формат: s ДД.ММ.ГГГГ ЧЧ:ММ место (пример: s 04.04.2026 18:00 Сатурн) или s prof / s tr",
-          5000,
-        );
         return;
       }
-      return;
-    }
+      if (await trySetLimit({ vk, store, context, event: lastEvent, text })) {
+        await deleteIncomingCommandMessage(context);
+        return;
+      }
+      if (await tryPayByNumber({ vk, store, context, event: lastEvent, text })) {
+        await deleteIncomingCommandMessage(context);
+        return;
+      }
+      if (
+        await tryUnpayByNumber({ vk, store, context, event: lastEvent, text })
+      ) {
+        await deleteIncomingCommandMessage(context);
+        return;
+      }
+      if (
+        await tryRemoveByNumber({ vk, store, context, event: lastEvent, text })
+      ) {
+        await deleteIncomingCommandMessage(context);
+        return;
+      }
 
-    if (await tryAddByName({ vk, store, context, event: lastEvent, text })) {
-      await deleteIncomingCommandMessage(context);
+      // Админ отправил текст похожий на команду, но ни один обработчик не сработал — всё равно убираем сообщение из чата.
+      if (isCommandLike && admin) {
+        await deleteIncomingCommandMessage(context);
+      }
       return;
+    } catch (err) {
+      // Любая ошибка в message_new не должна валить бота — только логируем.
+      logError('message_new/handler', err, { peerId: context?.peerId, senderId: context?.senderId })
     }
-    if (
-      await tryAddTestPlayers({ vk, store, context, event: lastEvent, text })
-    ) {
-      await deleteIncomingCommandMessage(context);
-      return;
-    }
-    if (await trySetLimit({ vk, store, context, event: lastEvent, text })) {
-      await deleteIncomingCommandMessage(context);
-      return;
-    }
-    if (await tryPayByNumber({ vk, store, context, event: lastEvent, text })) {
-      await deleteIncomingCommandMessage(context);
-      return;
-    }
-    if (
-      await tryUnpayByNumber({ vk, store, context, event: lastEvent, text })
-    ) {
-      await deleteIncomingCommandMessage(context);
-      return;
-    }
-    if (
-      await tryRemoveByNumber({ vk, store, context, event: lastEvent, text })
-    ) {
-      await deleteIncomingCommandMessage(context);
-      return;
-    }
-
-    // Админ отправил текст похожий на команду, но ни один обработчик не сработал — всё равно убираем сообщение из чата.
-    if (isCommandLike && admin) {
-      await deleteIncomingCommandMessage(context);
-    }
-    return;
   };
 }

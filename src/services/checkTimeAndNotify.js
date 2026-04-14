@@ -86,6 +86,18 @@ async function deleteMessageLater(vk, peerId, messageId, delayMs) {
   }, delayMs)
 }
 
+async function sendPrivateBatchSafe(vk, userIds, text, scope) {
+  // Один неуспешный user_id не должен прерывать всю рассылку.
+  const results = await Promise.allSettled(
+    userIds.map((id) => sendPrivateMessage(vk, id, text, { dont_parse_links: 1 })),
+  )
+  for (const [idx, r] of results.entries()) {
+    if (r.status === 'rejected') {
+      logError(scope, r.reason, { userId: userIds[idx] })
+    }
+  }
+}
+
 /**
  * Проверка раз в минуту: если до матча <= 3 часа, шлём уведомление в беседу и в ЛС игрокам.
  * Отправляем один раз на событие (event.notificationSent).
@@ -120,15 +132,21 @@ export async function checkTimeAndNotify(vk, store) {
     // ЛС игрокам основного состава (как в telegram-bot: только players, не queue)
     const ids = Array.isArray(event.participantsOrder) ? event.participantsOrder : [...(event.participants || [])]
     const uniq = [...new Set(ids)].filter((id) => typeof id === 'number' && id > 0)
-    await Promise.all(
-      uniq.map((id) => sendPrivateMessage(vk, id, text, { dont_parse_links: 1 })),
-    )
+    await sendPrivateBatchSafe(vk, uniq, text, 'checkTimeAndNotify/private')
   }
 }
 
 export function startNotifyLoop(vk, store) {
+  let tickInFlight = false
   setInterval(() => {
-    checkTimeAndNotify(vk, store).catch((err) => logError('checkTimeAndNotify/loop', err))
+    // Не запускаем второй тик, пока первый ещё работает.
+    if (tickInFlight) return
+    tickInFlight = true
+    checkTimeAndNotify(vk, store)
+      .catch((err) => logError('checkTimeAndNotify/loop', err))
+      .finally(() => {
+        tickInFlight = false
+      })
   }, ONE_MINUTE_MS)
 }
 
