@@ -70,9 +70,28 @@ function calcRestartDelayMs(attempt) {
   return Math.min(next, restartMaxMs)
 }
 
+function collectErrorText(err) {
+  const parts = []
+  let current = err
+  let depth = 0
+  while (current && depth < 5) {
+    if (current instanceof Error) {
+      parts.push(current.message, current.stack || '')
+    } else {
+      parts.push(String(current))
+    }
+    current = current.cause
+    depth += 1
+  }
+  return parts.join('\n').toLowerCase()
+}
+
 function isPollingAlreadyStartedError(err) {
-  const msg = err instanceof Error ? err.message : String(err)
-  return msg.includes('Polling updates already started')
+  const text = collectErrorText(err)
+  return (
+    text.includes('polling updates already started')
+    || (text.includes('polling') && text.includes('already started'))
+  )
 }
 
 function formatUptime(ms) {
@@ -192,10 +211,15 @@ async function runUpdatesForever() {
   while (true) {
     try {
       await vk.updates.start()
-      // Если start вернулся без ошибки, значит long-poll был остановлен снаружи.
-      logWarn('updates/start', 'vk.updates.start завершился без ошибки, пробуем запустить снова')
+      // В vk-io start() не «висит» до остановки polling: он сразу возвращает управление, а опрос идёт в фоне.
+      // Если здесь снова вызвать start() в следующей итерации цикла — будет «Polling updates already started».
       attempt = 0
       runtimeStats.updatesConsecutiveErrors = 0
+      logWarn(
+        'updates/start',
+        'Long-poll запущен (start() вернулся — это нормально для vk-io). Ждём, не вызывая start() повторно.',
+      )
+      await new Promise(() => {})
     } catch (err) {
       // Отдельный сценарий: polling уже запущен (обычно двойной старт или второй процесс).
       // Не считаем это как "падения подряд", иначе алерты будут бесконечно расти.
