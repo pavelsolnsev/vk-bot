@@ -70,6 +70,11 @@ function calcRestartDelayMs(attempt) {
   return Math.min(next, restartMaxMs)
 }
 
+function isPollingAlreadyStartedError(err) {
+  const msg = err instanceof Error ? err.message : String(err)
+  return msg.includes('Polling updates already started')
+}
+
 function formatUptime(ms) {
   const totalSec = Math.max(0, Math.floor(ms / 1000))
   const h = Math.floor(totalSec / 3600)
@@ -121,6 +126,17 @@ async function reportTopLevelError(scope, err) {
     `top:${scope}`,
     `🚨 vk-bot top-level ошибка\nscope: ${scope}\nerror: ${e}\ntime: ${new Date().toISOString()}`,
   )
+}
+
+async function stopUpdatesSafe(reason) {
+  try {
+    await vk.updates.stop()
+    logWarn('updates/stop', `Остановили активный long-poll (${reason})`)
+    return true
+  } catch (stopErr) {
+    logError('updates/stop', stopErr, { reason })
+    return false
+  }
 }
 
 process.on('unhandledRejection', (reason) => {
@@ -181,6 +197,23 @@ async function runUpdatesForever() {
       attempt = 0
       runtimeStats.updatesConsecutiveErrors = 0
     } catch (err) {
+      // Отдельный сценарий: polling уже запущен (обычно двойной старт или второй процесс).
+      // Не считаем это как "падения подряд", иначе алерты будут бесконечно расти.
+      if (isPollingAlreadyStartedError(err)) {
+        logWarn('updates/start', 'Polling updates already started — пробуем мягко перезапустить long-poll')
+        await maybeSendAdminAlert(
+          'updates/already-started',
+          '⚠️ vk-bot: получена ошибка "Polling updates already started". ' +
+          'Пробуем stop() и повторный запуск. Проверьте, что запущен только один процесс бота.',
+        )
+        await stopUpdatesSafe('already-started')
+        attempt = 0
+        runtimeStats.updatesConsecutiveErrors = 0
+        const delayMs = Math.min(restartBaseMs, 5_000)
+        await sleep(delayMs)
+        continue
+      }
+
       logError('updates/start', err, { attempt: attempt + 1 })
       attempt += 1
       runtimeStats.updatesRestartCount += 1
