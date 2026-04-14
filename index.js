@@ -30,8 +30,8 @@ const store = createEventStore()
 // Пауза между попытками перезапуска long-poll (если VK временно недоступен).
 const RESTART_BASE_MS = Number(process.env.VK_UPDATES_RESTART_BASE_MS || 2_000)
 const RESTART_MAX_MS = Number(process.env.VK_UPDATES_RESTART_MAX_MS || 60_000)
-// Пульс-лог: помогает увидеть, что процесс жив даже когда тишина в чате.
-const HEARTBEAT_MS = Number(process.env.VK_BOT_HEARTBEAT_MS || 300_000)
+// Пульс-лог раз в 30 минут: реже пишем в лог, но всё ещё видно, что процесс жив.
+const HEARTBEAT_MS = Number(process.env.VK_BOT_HEARTBEAT_MS || 30 * 60 * 1000)
 // После N подряд ошибок long-poll отправляем алерт админам.
 const ALERT_CONSECUTIVE_ERRORS = Number(process.env.VK_ALERT_CONSECUTIVE_ERRORS || 3)
 // Защита от спама одинаковыми алертами.
@@ -43,7 +43,7 @@ function normalizeMs(v, fallback) {
 
 const restartBaseMs = normalizeMs(RESTART_BASE_MS, 2_000)
 const restartMaxMs = normalizeMs(RESTART_MAX_MS, 60_000)
-const heartbeatMs = normalizeMs(HEARTBEAT_MS, 300_000)
+const heartbeatMs = normalizeMs(HEARTBEAT_MS, 30 * 60 * 1000)
 const alertConsecutiveErrors = normalizeMs(ALERT_CONSECUTIVE_ERRORS, 3)
 const alertCooldownMs = normalizeMs(ALERT_COOLDOWN_MS, 10 * 60 * 1000)
 
