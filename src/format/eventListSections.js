@@ -55,10 +55,12 @@ export function formatPaymentBlock(loc) {
 }
 
 export function formatInstructionsBlock() {
+  // Подписи как на сайте: игроки, команды, табло, информация — чтобы люди не путали ссылки.
   return (
-    `🌐Рейтинг: https://football.pavelsolntsev.ru\n` +
-    `🏆Турнир:  https://football.pavelsolntsev.ru/tournament/\n` +
-    `ℹ️Инфо:    https://football.pavelsolntsev.ru/info\n` +
+    `🌐Игроки: https://football.pavelsolntsev.ru\n` +
+    `🏆Команды: https://football.pavelsolntsev.ru/tournament/\n` +
+    `📺Итоги игр и live: https://tournament.pavelsolntsev.ru/\n` +
+    `ℹ️Информация: https://football.pavelsolntsev.ru/info\n` +
     `📣ВКонтакте: https://vk.com/rmsfootball\n\n` +
     `🕹 КАК ЗАПИСАТЬСЯ\n` +
     `▸ Нажми кнопку Играть или напиши в чат +\n` +
