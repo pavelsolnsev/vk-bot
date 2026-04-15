@@ -25,6 +25,7 @@ export async function tryStartEvent({ vk, store, context, text, peerId, senderId
     date: startCmd.date,
     time: startCmd.time,
     place: startCmd.place,
+    teamSlots: startCmd.teamSlots,
   })
 
   await refreshList({ vk, store, context, event })

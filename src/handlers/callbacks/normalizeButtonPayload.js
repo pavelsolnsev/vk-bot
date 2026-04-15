@@ -18,6 +18,8 @@ export function normalizeButtonPayload(raw) {
   const cmd = p.cmd ?? p.command
   const gameEventId = p.event_id ?? p.eventId ?? p.eid
   if (!cmd || !gameEventId) return null
-  return { cmd, gameEventId }
+  const teamRaw = p.team ?? p.t
+  const team = typeof teamRaw === 'string' && teamRaw.trim() !== '' ? teamRaw.trim() : undefined
+  return { cmd, gameEventId, team }
 }
 

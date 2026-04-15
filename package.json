@@ -6,6 +6,9 @@
   "scripts": {
     "start": "node index.js",
     "dev": "node index.js",
+    "selftest:team": "node scripts/selftest-team-mode.js",
+    "selftest:admin": "node scripts/selftest-admin-commands.js",
+    "selftest": "npm run selftest:admin && npm run selftest:team",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

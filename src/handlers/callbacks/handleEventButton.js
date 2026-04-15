@@ -25,7 +25,7 @@ export async function handleEventButton({ vk, store, ctx }) {
   }
 
   if (payload.cmd === 'join') {
-    const res = joinEvent(event, ctx.userId)
+    const res = joinEvent(event, ctx.userId, { team: payload.team })
     const rolledBack = await syncFootballAfterJoin(vk, ctx.userId, res, {
       event,
       onBlocked: () => {

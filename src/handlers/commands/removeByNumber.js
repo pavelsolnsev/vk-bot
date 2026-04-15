@@ -1,16 +1,24 @@
-import { getUserIdByIndex } from './indexByNumber.js'
+import { getUserIdByIndex, getUserIdByTeamIndex } from './indexByNumber.js'
 import { refreshList } from './context.js'
 import { leaveEvent } from '../../services/roster.js'
 import { notifyPromotedToMain } from '../../services/dmNotifications.js'
 import { removePlayerFromFootballSite } from '../../services/footballApi.js'
 import { sendEphemeral } from '../../vk/sendEphemeral.js'
+import { parseRemoveRosterCommand } from '../../parsers/adminChatCommands.js'
 
 export async function tryRemoveByNumber({ vk, store, context, event, text }) {
-  const m = text.match(/^r(\d+)$/iu)
-  if (!m) return false
+  const parsed = parseRemoveRosterCommand(text)
+  if (!parsed) return false
 
-  const userId = getUserIdByIndex(event, m[1])
-  if (userId == null) return true
+  const userId =
+    parsed.mode === 'team'
+      ? getUserIdByTeamIndex(event, parsed.teamRaw, parsed.number)
+      : getUserIdByIndex(event, parsed.number)
+  if (userId == null) {
+    // Подсказка для админа, если команда/номер введены с ошибкой.
+    await sendEphemeral(context, '⚠️ Игрок не найден: проверь команду и номер.', 4500)
+    return true
+  }
 
   const inRoster = event.participants.has(userId) || event.queue.has(userId)
   if (!inRoster) {

@@ -54,8 +54,11 @@ export function formatPaymentBlock(loc) {
   )
 }
 
-export function formatInstructionsBlock() {
+export function formatInstructionsBlock(opts = {}) {
   // Подписи как на сайте: игроки, команды, табло, информация — чтобы люди не путали ссылки.
+  const joinLine = opts.teamPickMode
+    ? `▸ Нажми кнопку с названием своей команды или напиши в чат +\n`
+    : `▸ Нажми кнопку Играть или напиши в чат +\n`
   return (
     `🌐Игроки: https://football.pavelsolntsev.ru\n` +
     `🏆Команды: https://football.pavelsolntsev.ru/tournament/\n` +
@@ -63,7 +66,7 @@ export function formatInstructionsBlock() {
     `ℹ️Информация: https://football.pavelsolntsev.ru/info\n` +
     `📣ВКонтакте: https://vk.com/rmsfootball\n\n` +
     `🕹 КАК ЗАПИСАТЬСЯ\n` +
-    `▸ Нажми кнопку Играть или напиши в чат +\n` +
+    joinLine +
     `▸ Нажми кнопку Выйти или напиши в чат -\n\n`
   )
 }

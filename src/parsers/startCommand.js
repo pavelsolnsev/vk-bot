@@ -47,6 +47,45 @@ function nextOccurrenceMoscow(wantJsDay, hour, minute) {
   return null
 }
 
+/**
+ * Имена команд после `s tr …`: через запятую или через пробелы (одно слово = одна команда).
+ * Нужно, чтобы под список турнира сделать кнопки и потом красиво разнести людей по блокам в тексте.
+ */
+export function parseTeamSlotNames(rest) {
+  const raw = String(rest || '').trim()
+  if (!raw) return undefined
+
+  let parts = []
+  if (raw.includes(',')) {
+    parts = raw.split(',').map((s) => s.trim()).filter(Boolean)
+  } else {
+    parts = raw.split(/\s+/).filter(Boolean)
+  }
+
+  const seen = new Set()
+  const out = []
+  for (const p of parts) {
+    // Сжимаем пробелы и режем очень длинные подписи, чтобы кнопка и payload не ломались.
+    const cleaned = p.replace(/\s+/g, ' ').trim().slice(0, 40)
+    if (!cleaned) continue
+    const key = cleaned.toLowerCase()
+    if (seen.has(key)) continue
+    seen.add(key)
+    out.push(cleaned)
+    // Во ВК inline-клавиатура — макс. 10 строк; «Выйти» занимает отдельный ряд, команд оставляем до 9.
+    if (out.length >= 9) break
+  }
+  return out.length ? out : undefined
+}
+
+/** Поиск слота команды без учёта регистра и лишних пробелов. */
+export function findTeamSlotLabel(teamSlots, rawLabel) {
+  const slots = Array.isArray(teamSlots) ? teamSlots : []
+  const want = String(rawLabel ?? '').replace(/\s+/g, ' ').trim().toLowerCase()
+  if (!want) return null
+  return slots.find((s) => String(s ?? '').replace(/\s+/g, ' ').trim().toLowerCase() === want) || null
+}
+
 /** Профилакторий: ближайший понедельник 20:30 (МСК). Турнир: ближайшая пятница 20:00 (МСК). */
 export function parsePresetStartCommand(text) {
   const trimmed = text.trim()
@@ -55,10 +94,13 @@ export function parsePresetStartCommand(text) {
     if (!slot) return null
     return { ...slot, place: 'prof' }
   }
-  if (/^(s|start)\s+tr$/iu.test(trimmed)) {
+  // `s tr` как раньше, плюс опционально список команд: `s tr А Б` или `s tr Красные, Синие`
+  if (/^(s|start)\s+tr\b/iu.test(trimmed)) {
     const slot = nextOccurrenceMoscow(5, 20, 0)
     if (!slot) return null
-    return { ...slot, place: 'tr' }
+    const afterTr = trimmed.replace(/^(s|start)\s+tr\s*/iu, '').trim()
+    const teamSlots = parseTeamSlotNames(afterTr)
+    return { ...slot, place: 'tr', teamSlots }
   }
   return null
 }

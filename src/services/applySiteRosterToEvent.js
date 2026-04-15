@@ -26,6 +26,12 @@ export function noteSiteSyncGraceAfterFootballJoin(event, vkUserId, ttlMs = DEFA
 export function applySiteRosterToEvent(event, orderedVkUserIds) {
   ensureRoster(event)
 
+  const slots = Array.isArray(event.teamSlots) && event.teamSlots.length ? event.teamSlots : null
+  const prevTeams =
+    slots && event.participantTeamByVkId instanceof Map
+      ? new Map(event.participantTeamByVkId)
+      : null
+
   const now = Date.now()
   const grace = event.siteSyncGraceUntilByVkId
 
@@ -74,4 +80,14 @@ export function applySiteRosterToEvent(event, orderedVkUserIds) {
   event.queue = new Set(queue)
   event.queueOrder = [...queue]
   event.paidParticipants = nextPaid
+
+  // Сайт не знает про «команды в ВК» — если человек остался в списке, оставляем ему ту же метку для текста.
+  if (prevTeams && slots) {
+    const nextMap = new Map()
+    for (const id of [...main, ...queue]) {
+      const label = prevTeams.get(id)
+      if (label && slots.includes(label)) nextMap.set(id, label)
+    }
+    event.participantTeamByVkId = nextMap
+  }
 }

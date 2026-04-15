@@ -2,8 +2,10 @@ import { buildEventListText } from '../format/eventListMessage.js'
 import { stripDuplicateListBlocks } from '../format/stripDuplicateListBlocks.js'
 import { fetchVkRatingsOnFootballSite } from './footballApi.js'
 import { resolveUserNames } from '../vk/userNames.js'
+import { ensureRoster } from './roster.js'
 
 export async function buildEventListMessageBody(vk, userNameCache, event) {
+  ensureRoster(event)
   const participants = Array.isArray(event.participantsOrder)
     ? event.participantsOrder
     : [...(event.participants || [])]
@@ -38,6 +40,8 @@ export async function buildEventListMessageBody(vk, userNameCache, event) {
     participantRatings,
     queueIds: queue,
     queueRatings,
+    teamSlots: event.teamSlots ?? null,
+    participantTeamByVkId: event.participantTeamByVkId ?? null,
   })
   return stripDuplicateListBlocks(body)
 }

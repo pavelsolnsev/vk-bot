@@ -10,6 +10,7 @@ import { tryRemoveByNumber } from "./commands/removeByNumber.js";
 import { tryPlusMinus } from "./commands/plusMinus.js";
 import { tryAddByName } from "./commands/addByName.js";
 import { tryAddTestPlayers } from "./commands/addTestPlayers.js";
+import { tryAddTeamSlots } from "./commands/addTeamSlot.js";
 import { runRdy } from "./commands/rdy.js";
 import { logError } from "../utils/botLog.js";
 
@@ -58,9 +59,13 @@ export function createMessageNewHandler({ vk, store }) {
         /^e!$/iu.test(text) ||
         /^l(\d+)$/iu.test(text) ||
         /^p(\d+)$/iu.test(text) ||
+        /^p\s+/iu.test(text) ||
         /^up(\d+)$/iu.test(text) ||
+        /^up\s+/iu.test(text) ||
         /^r(\d+)$/iu.test(text) ||
+        /^r\s+/iu.test(text) ||
         /^\+add\s+/iu.test(text) ||
+        /^\+team\s+/iu.test(text) ||
         /^\+1test$/iu.test(text) ||
         text.startsWith("s ") ||
         text.startsWith("start ");
@@ -119,7 +124,7 @@ export function createMessageNewHandler({ vk, store }) {
           await deleteIncomingCommandMessage(context);
           await sendEphemeral(
             context,
-            "⚠️ Формат: s ДД.ММ.ГГГГ ЧЧ:ММ место (пример: s 04.04.2026 18:00 Сатурн) или s prof / s tr",
+            "⚠️ Формат: s ДД.ММ.ГГГГ ЧЧ:ММ место (пример: s 04.04.2026 18:00 Сатурн) или s prof / s tr [команды через пробел или запятую]",
             5000,
           );
           return;
@@ -128,6 +133,10 @@ export function createMessageNewHandler({ vk, store }) {
       }
 
       if (await tryAddByName({ vk, store, context, event: lastEvent, text })) {
+        await deleteIncomingCommandMessage(context);
+        return;
+      }
+      if (await tryAddTeamSlots({ vk, store, context, event: lastEvent, text })) {
         await deleteIncomingCommandMessage(context);
         return;
       }

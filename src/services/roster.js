@@ -1,3 +1,5 @@
+import { findTeamSlotLabel } from '../parsers/startCommand.js'
+
 /**
  * Логика списка + очереди в стиле telegram-bot:
  * - если мест нет, игрок уходит в очередь
@@ -10,6 +12,8 @@ export function ensureRoster(event) {
   if (!Number.isFinite(event.maxPlayers) || event.maxPlayers <= 0) event.maxPlayers = 20
   if (!event.participants) event.participants = new Set()
   if (!event.participantsOrder) event.participantsOrder = []
+  // Карта «кто в какой команде» только для отображения в ВК; без неё старые события ведут себя как раньше.
+  if (!event.participantTeamByVkId) event.participantTeamByVkId = new Map()
   // Временная «страховка» после POST /api/vk/join: снимок состава мог прийти из БД на мгновение раньше фиксации.
   if (!event.siteSyncGraceUntilByVkId) event.siteSyncGraceUntilByVkId = new Map()
 }
@@ -18,7 +22,18 @@ function clearSiteSyncGraceForVkId(event, userId) {
   event.siteSyncGraceUntilByVkId?.delete(userId)
 }
 
-export function joinEvent(event, userId) {
+/** Если в матче заданы команды, запоминаем выбор с кнопки (или не трогаем карту при записи через +). */
+function noteTeamChoiceAfterJoin(event, userId, teamFromButton) {
+  const slots = event.teamSlots
+  if (!Array.isArray(slots) || !slots.length) return
+  ensureRoster(event)
+  // Сопоставляем мягко (регистр/пробелы), но сохраняем каноничное имя слота.
+  const matched = findTeamSlotLabel(slots, teamFromButton)
+  if (!matched) return
+  event.participantTeamByVkId.set(userId, matched)
+}
+
+export function joinEvent(event, userId, joinOptions = {}) {
   ensureRoster(event)
 
   if (event.participants.has(userId) || event.queue.has(userId)) return { status: 'noop' }
@@ -26,10 +41,12 @@ export function joinEvent(event, userId) {
   if (event.participants.size < event.maxPlayers) {
     event.participants.add(userId)
     event.participantsOrder.push(userId)
+    noteTeamChoiceAfterJoin(event, userId, joinOptions.team)
     return { status: 'main' }
   } else {
     event.queue.add(userId)
     event.queueOrder.push(userId)
+    noteTeamChoiceAfterJoin(event, userId, joinOptions.team)
     return { status: 'queue' }
   }
 }
@@ -41,12 +58,14 @@ export function leaveEvent(event, userId) {
   if (event.participants.delete(userId)) {
     removeFromOrder(event.participantsOrder, userId)
     event.paidParticipants.delete(userId)
+    event.participantTeamByVkId?.delete(userId)
     const promoted = promoteFromQueue(event)
     return { leftFrom: 'main', promoted }
   }
 
   if (event.queue.delete(userId)) {
     removeFromOrder(event.queueOrder, userId)
+    event.participantTeamByVkId?.delete(userId)
     return { leftFrom: 'queue', promoted: [] }
   }
   return { leftFrom: 'none', promoted: [] }
@@ -110,6 +129,7 @@ export function removeUserEverywhere(event, userId) {
   event.participants.delete(userId)
   event.queue.delete(userId)
   event.paidParticipants.delete(userId)
+  event.participantTeamByVkId?.delete(userId)
   removeFromOrder(event.participantsOrder, userId)
   removeFromOrder(event.queueOrder, userId)
 }

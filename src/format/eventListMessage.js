@@ -27,11 +27,18 @@ export function buildEventListText({
   /** параллельно queueNames */
   queueIds,
   queueRatings,
+  teamSlots = null,
+  participantTeamByVkId = null,
 }) {
   const placeKey = String(place || '')
     .trim()
     .toLowerCase()
   const loc = eventListLocations[placeKey] || null
+
+  const teamOptions =
+    Array.isArray(teamSlots) && teamSlots.length && participantTeamByVkId instanceof Map
+      ? { teamSlots, participantTeamByVkId }
+      : null
 
   const blocks = loc
     ? loc.blocks
@@ -55,7 +62,7 @@ export function buildEventListText({
     } else if (block === 'payment') {
       text += formatPaymentBlock(loc)
     } else if (block === 'instructions') {
-      text += formatInstructionsBlock()
+      text += formatInstructionsBlock({ teamPickMode: Boolean(teamOptions) })
     } else if (block === 'players') {
       text += formatPlayersBlock(
         names,
@@ -63,9 +70,10 @@ export function buildEventListText({
         maxPlayers ?? loc?.limit,
         participantIds,
         participantRatings,
+        teamOptions,
       )
     } else if (block === 'queue') {
-      text += formatQueueBlock(queueNames, queueIds, queueRatings)
+      text += formatQueueBlock(queueNames, queueIds, queueRatings, teamOptions)
     } else if (block === 'summary') {
       text += formatSummaryBlock(names.length, maxPlayers ?? loc?.limit)
     }

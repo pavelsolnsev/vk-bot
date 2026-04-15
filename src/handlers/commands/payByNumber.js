@@ -1,12 +1,21 @@
-import { getUserIdByIndex } from './indexByNumber.js'
+import { getUserIdByIndex, getUserIdByTeamIndex } from './indexByNumber.js'
 import { refreshList } from './context.js'
+import { sendEphemeral } from '../../vk/sendEphemeral.js'
+import { parsePayRosterCommand, parseUnpayRosterCommand } from '../../parsers/adminChatCommands.js'
 
 export async function tryPayByNumber({ vk, store, context, event, text }) {
-  const m = text.match(/^p(\d+)$/iu)
-  if (!m) return false
+  const parsed = parsePayRosterCommand(text)
+  if (!parsed) return false
 
-  const userId = getUserIdByIndex(event, m[1])
-  if (userId == null) return true
+  const userId =
+    parsed.mode === 'team'
+      ? getUserIdByTeamIndex(event, parsed.teamRaw, parsed.number)
+      : getUserIdByIndex(event, parsed.number)
+  if (userId == null) {
+    // Явно подсказываем, чтобы админ понял, что индекс/команда не сошлись.
+    await sendEphemeral(context, '⚠️ Игрок не найден: проверь команду и номер.', 4500)
+    return true
+  }
 
   event.paidParticipants.add(userId)
   await refreshList({ vk, store, context, event })
@@ -14,11 +23,18 @@ export async function tryPayByNumber({ vk, store, context, event, text }) {
 }
 
 export async function tryUnpayByNumber({ vk, store, context, event, text }) {
-  const m = text.match(/^up(\d+)$/iu)
-  if (!m) return false
+  const parsed = parseUnpayRosterCommand(text)
+  if (!parsed) return false
 
-  const userId = getUserIdByIndex(event, m[1])
-  if (userId == null) return true
+  const userId =
+    parsed.mode === 'team'
+      ? getUserIdByTeamIndex(event, parsed.teamRaw, parsed.number)
+      : getUserIdByIndex(event, parsed.number)
+  if (userId == null) {
+    // Явно подсказываем, чтобы админ понял, что индекс/команда не сошлись.
+    await sendEphemeral(context, '⚠️ Игрок не найден: проверь команду и номер.', 4500)
+    return true
+  }
 
   event.paidParticipants.delete(userId)
   await refreshList({ vk, store, context, event })

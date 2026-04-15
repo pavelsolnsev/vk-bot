@@ -4,12 +4,13 @@ import { refreshList } from './context.js'
 import { createSyntheticPlayerOnFootballSite } from '../../services/footballApi.js'
 import { syncFootballAfterJoin } from '../../services/footballRosterSync.js'
 import { sendEphemeral } from '../../vk/sendEphemeral.js'
+import { matchAddByNameCommand, parseAddByNameBody } from '../../parsers/adminChatCommands.js'
 
 export async function tryAddByName({ vk, store, context, event, text }) {
-  const m = text.match(/^\+add\s+(.+)$/iu)
+  const m = matchAddByNameCommand(text)
   if (!m) return false
 
-  const name = m[1].trim()
+  const { playerName: name, team } = parseAddByNameBody(m.body, event.teamSlots)
   if (!name) return true
 
   const created = await createSyntheticPlayerOnFootballSite({ name })
@@ -24,7 +25,7 @@ export async function tryAddByName({ vk, store, context, event, text }) {
 
   const vkId = created.vk_user_id
   setVirtualPlayerName(store.userNameCache, vkId, created.name ?? name)
-  const res = joinEvent(event, vkId)
+  const res = joinEvent(event, vkId, team ? { team } : {})
   const rolledBack = await syncFootballAfterJoin(vk, vkId, res, {
     event,
     overrideFirstName: created.name ?? name,

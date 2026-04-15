@@ -8,10 +8,12 @@ export function createEventStore() {
     lastEventByPeer,
     userNameCache,
 
-    createEvent({ peerId, senderId, date, time, place }) {
+    createEvent({ peerId, senderId, date, time, place, teamSlots }) {
       const id = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`
       const placeKey = String(place || '').trim().toLowerCase()
       const defaultLimit = placeKey === 'saturn' ? 10 : 20
+      const slots =
+        Array.isArray(teamSlots) && teamSlots.length ? [...teamSlots] : null
       const event = {
         id,
         peerId,
@@ -19,6 +21,10 @@ export function createEventStore() {
         date,
         time,
         place,
+        /** для турнира (tr): подписи кнопок и групп в списке; лимит/очередь общие как раньше */
+        teamSlots: slots,
+        /** vk id → название команды из teamSlots (только подсказка для текста в чате) */
+        participantTeamByVkId: new Map(),
         participants: new Set(),
         participantsOrder: [],
         queue: new Set(),
