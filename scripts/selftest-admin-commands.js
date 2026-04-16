@@ -1,5 +1,6 @@
 import {
   matchAddByNameCommand,
+  matchRemoveTeamSlotCommand,
   matchTeamSlotCommand,
   parseAddByNameBody,
   parsePayRosterCommand,
@@ -49,6 +50,10 @@ function runTeam() {
   const m = matchTeamSlotCommand('+team  A,  B , a ')
   assertEqual(m.teamNames, ['A', 'B'], '+team дедуп и нормализация')
   assertNull(matchTeamSlotCommand('+team'), '+team без аргументов')
+
+  assertEqual(matchRemoveTeamSlotCommand('-team A'), { teamRaw: 'A' }, '-team парсится')
+  assertEqual(matchRemoveTeamSlotCommand('+teamdel  A  '), { teamRaw: 'A' }, '+teamdel парсится')
+  assertNull(matchRemoveTeamSlotCommand('-team'), '-team без аргументов')
 }
 
 function main() {

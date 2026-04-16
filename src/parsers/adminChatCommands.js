@@ -19,6 +19,21 @@ export function matchTeamSlotCommand(text) {
 }
 
 /**
+ * Разбор удаления команды из списка кнопок.
+ * Поддерживаем два синтаксиса:
+ * - `-team Команда`
+ * - `+teamdel Команда`
+ */
+export function matchRemoveTeamSlotCommand(text) {
+  const t = String(text || '').trim()
+  const m1 = t.match(/^-team\s+(.+)$/iu)
+  if (m1) return { teamRaw: m1[1] }
+  const m2 = t.match(/^\+teamdel\s+(.+)$/iu)
+  if (m2) return { teamRaw: m2[1] }
+  return null
+}
+
+/**
  * Разбор `p3` или `p Команда 2` — то же, что в payByNumber.js.
  */
 export function parsePayRosterCommand(text) {
