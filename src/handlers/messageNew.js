@@ -12,6 +12,7 @@ import { tryAddByName } from "./commands/addByName.js";
 import { tryAddTestPlayers } from "./commands/addTestPlayers.js";
 import { tryAddTeamSlots } from "./commands/addTeamSlot.js";
 import { tryRemoveTeamSlot } from "./commands/removeTeamSlot.js";
+import { tryMovePlayerTeam } from "./commands/movePlayerTeam.js";
 import { runRdy } from "./commands/rdy.js";
 import { logError } from "../utils/botLog.js";
 
@@ -67,8 +68,10 @@ export function createMessageNewHandler({ vk, store }) {
         /^r\s+/iu.test(text) ||
         /^\+add\s+/iu.test(text) ||
         /^\+team\s+/iu.test(text) ||
-        /^\-team\s+/iu.test(text) ||
+        /^-team\s+/iu.test(text) ||
         /^\+teamdel\s+/iu.test(text) ||
+        /^mvteam\s+/iu.test(text) ||
+        /^mvteamq\s+/iu.test(text) ||
         /^\+1test$/iu.test(text) ||
         text.startsWith("s ") ||
         text.startsWith("start ");
@@ -144,6 +147,10 @@ export function createMessageNewHandler({ vk, store }) {
         return;
       }
       if (await tryRemoveTeamSlot({ vk, store, context, event: lastEvent, text })) {
+        await deleteIncomingCommandMessage(context);
+        return;
+      }
+      if (await tryMovePlayerTeam({ vk, store, context, event: lastEvent, text })) {
         await deleteIncomingCommandMessage(context);
         return;
       }

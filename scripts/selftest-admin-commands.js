@@ -1,5 +1,6 @@
 import {
   matchAddByNameCommand,
+  matchMovePlayerTeamCommand,
   matchRemoveTeamSlotCommand,
   matchTeamSlotCommand,
   parseAddByNameBody,
@@ -54,6 +55,17 @@ function runTeam() {
   assertEqual(matchRemoveTeamSlotCommand('-team A'), { teamRaw: 'A' }, '-team парсится')
   assertEqual(matchRemoveTeamSlotCommand('+teamdel  A  '), { teamRaw: 'A' }, '+teamdel парсится')
   assertNull(matchRemoveTeamSlotCommand('-team'), '-team без аргументов')
+
+  assertEqual(
+    matchMovePlayerTeamCommand('mvteam Красные 2 Синие'),
+    { where: 'main', fromTeamRaw: 'Красные', number: '2', toTeamRaw: 'Синие' },
+    'mvteam парсится',
+  )
+  assertEqual(
+    matchMovePlayerTeamCommand('mvteamq без команды 1 Красные'),
+    { where: 'queue', fromTeamRaw: 'без команды', number: '1', toTeamRaw: 'Красные' },
+    'mvteamq парсится',
+  )
 }
 
 function main() {

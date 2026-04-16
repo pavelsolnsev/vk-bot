@@ -34,6 +34,23 @@ export function matchRemoveTeamSlotCommand(text) {
 }
 
 /**
+ * Перенос игрока между командами (меняем только метку команды):
+ * - `mvteam <откуда> <номер> <куда>` — в основном составе
+ * - `mvteamq <откуда> <номер> <куда>` — в очереди
+ */
+export function matchMovePlayerTeamCommand(text) {
+  const t = String(text || '').trim()
+
+  const mMain = t.match(/^mvteam\s+(.+)\s+(\d+)\s+(.+)$/iu)
+  if (mMain) return { where: 'main', fromTeamRaw: mMain[1], number: mMain[2], toTeamRaw: mMain[3] }
+
+  const mQueue = t.match(/^mvteamq\s+(.+)\s+(\d+)\s+(.+)$/iu)
+  if (mQueue) return { where: 'queue', fromTeamRaw: mQueue[1], number: mQueue[2], toTeamRaw: mQueue[3] }
+
+  return null
+}
+
+/**
  * Разбор `p3` или `p Команда 2` — то же, что в payByNumber.js.
  */
 export function parsePayRosterCommand(text) {
