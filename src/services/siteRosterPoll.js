@@ -97,6 +97,7 @@ export async function runSiteRosterPollTick(vk, store) {
     gameEventId: typeof snap.gameEventId === 'string' ? snap.gameEventId : null,
     rosterLen: Array.isArray(snap.rosterVkUserIds) ? snap.rosterVkUserIds.length : 0,
     matchStatus: typeof snap.matchStatus === 'string' ? snap.matchStatus : null,
+    vkMuted: snap.vkMuted === true,
   })
 
   if (snap.closeVkListRequested === true) {
@@ -147,11 +148,18 @@ export async function runSiteRosterPollTick(vk, store) {
     snap.matchStatus === 'live' || snap.matchStatus === 'finished' || snap.matchStatus === 'upcoming'
       ? snap.matchStatus
       : 'upcoming'
+  const vkMuted = snap.vkMuted === true
   if (!ev._siteMatchPollBootstrapped) {
     ev._siteMatchPollBootstrapped = true
     ev.lastSiteMatchStatus = matchStatus
     pollDebug('тик: первый снимок matchStatus — уведомление live не шлём (старт поллинга)', { matchStatus })
   } else if (ev.lastSiteMatchStatus !== 'live' && matchStatus === 'live') {
+    // Simple10: Если состояние на сайте помечено vkMuted=true, значит его менял ограниченный админ.
+    // Simple10: В этом режиме НЕ отправляем уведомление «Игра началась» в ВК при выборе команд.
+    if (vkMuted) {
+      ev.lastSiteMatchStatus = matchStatus
+      pollDebug('тик: matchStatus=live, но vkMuted=true — уведомление live пропущено', { peerId })
+    } else {
     try {
       await sendTournamentLiveNotice(vk, peerId, ev)
       pollDebug('тик: отправлено уведомление «Игра началась»', { peerId })
@@ -159,6 +167,7 @@ export async function runSiteRosterPollTick(vk, store) {
       logError('siteRosterPoll/liveNotice', err, { peerId, gameEventId })
     }
     ev.lastSiteMatchStatus = matchStatus
+    }
   } else if (ev.lastSiteMatchStatus !== matchStatus) {
     if (ev.lastSiteMatchStatus === 'live' && matchStatus !== 'live') {
       try {
