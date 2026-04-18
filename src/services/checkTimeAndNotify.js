@@ -13,7 +13,7 @@ const locations = {
   kz: { name: 'Красное Знамя', sum: 500 },
   prof: { name: 'Профилакторий', sum: 500 },
   saturn: { name: 'Сатурн', sum: 600 },
-  tr: { name: 'Турнир' },
+  tr: { name: 'Красное Знамя' },
 }
 
 const notifyLiveLine = `\n📺 Следи за ходом турнира в режиме онлайн: ${TOURNAMENT_ONLINE_URL}`

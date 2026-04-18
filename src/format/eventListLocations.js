@@ -32,7 +32,7 @@ export const eventListLocations = {
   },
 
   tr: {
-    name: 'Турнир',
+    name: 'Красное Знамя',
     address: 'Московская область, г. Раменское, ул. Воровского, д.4A (Красное Знамя)',
     link: 'https://yandex.ru/maps/-/CLuPMJ3L',
     route: 'https://yandex.ru/maps/?mode=routes&rtext=~55.574202,38.205299&rtt=auto',
