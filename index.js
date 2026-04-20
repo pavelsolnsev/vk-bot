@@ -4,6 +4,7 @@ import { createEventStore } from './src/store/eventStore.js'
 import { createMessageNewHandler } from './src/handlers/messageNew.js'
 import { createMessageEventHandler } from './src/handlers/messageEvent.js'
 import { startNotifyLoop } from './src/services/checkTimeAndNotify.js'
+import { startSiteStartRequestPoll } from './src/services/siteStartRequestPoll.js'
 import { stopSiteRosterPoll } from './src/services/siteRosterPoll.js'
 import { initializeFootballSiteMode } from './src/services/footballApi.js'
 import { setSiteListPollStop } from './src/handlers/commands/closeEvent.js'
@@ -260,6 +261,7 @@ async function main() {
   await initializeFootballSiteMode()
   setSiteListPollStop(stopSiteRosterPoll)
   startNotifyLoop(vk, store)
+  startSiteStartRequestPoll(vk, store)
   startHeartbeat()
   await runUpdatesForever()
 }

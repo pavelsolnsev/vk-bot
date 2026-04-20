@@ -218,3 +218,25 @@ export async function ackVkListCloseRequest() {
     return null
   }
 }
+
+/** Сбросить запрос «создать список» после выполнения (или noop). */
+export async function ackVkStartRequest() {
+  const auth = getFootballApiAuth()
+  if (!auth) return null
+  const { apiUrl, token } = auth
+  try {
+    const response = await fetchWithTimeout(`${apiUrl}/api/vk/start-request-ack`, {
+      method: 'POST',
+      headers: vkJsonHeaders(token),
+      body: JSON.stringify({}),
+    })
+    if (!response.ok) {
+      await logHttpNotOk(S, response, 'POST /api/vk/start-request-ack')
+      return null
+    }
+    return await response.json()
+  } catch (err) {
+    logFootballApiError(`${S}/start-request-ack`, err)
+    return null
+  }
+}
