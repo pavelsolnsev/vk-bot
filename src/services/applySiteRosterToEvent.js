@@ -22,8 +22,9 @@ export function noteSiteSyncGraceAfterFootballJoin(event, vkUserId, ttlMs = DEFA
  * Игроки без vk_user_id на сайте в снимок не попадают (кроме краткого grace после join, см. выше).
  * @param {object} event — объект события из eventStore (participants, queue, maxPlayers, …)
  * @param {number[]} orderedVkUserIds
+ * @param {number[]} [paidVkUserIds] — vk_id с отметкой оплаты с сайта (снимок roster-snapshot)
  */
-export function applySiteRosterToEvent(event, orderedVkUserIds) {
+export function applySiteRosterToEvent(event, orderedVkUserIds, paidVkUserIds = []) {
   ensureRoster(event)
 
   const slots = Array.isArray(event.teamSlots) && event.teamSlots.length ? event.teamSlots : null
@@ -67,12 +68,17 @@ export function applySiteRosterToEvent(event, orderedVkUserIds) {
   const main = unique.slice(0, max)
   const queue = unique.slice(max)
 
+  const sitePaid = new Set(
+    Array.isArray(paidVkUserIds)
+      ? paidVkUserIds.filter((id) => typeof id === 'number' && Number.isFinite(id) && id !== 0)
+      : [],
+  )
   const nextPaid = new Set()
   for (const id of main) {
-    if (event.paidParticipants.has(id)) nextPaid.add(id)
+    if (sitePaid.has(id)) nextPaid.add(id)
   }
   for (const id of queue) {
-    if (event.paidParticipants.has(id)) nextPaid.add(id)
+    if (sitePaid.has(id)) nextPaid.add(id)
   }
 
   event.participants = new Set(main)

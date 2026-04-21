@@ -14,6 +14,7 @@ export {
   unregisterVkListLinkOnFootballSite,
   createSyntheticPlayerOnFootballSite,
   fetchFootballSiteRosterSnapshot,
+  setPlayerPaidOnFootballSite,
   ackVkListCloseRequest,
   ackVkStartRequest,
 } from './footballApi/vkSiteRequests.js'

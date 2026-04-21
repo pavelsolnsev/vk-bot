@@ -96,6 +96,7 @@ export async function runSiteRosterPollTick(vk, store) {
     peerId: typeof snap.peerId === 'number' ? snap.peerId : null,
     gameEventId: typeof snap.gameEventId === 'string' ? snap.gameEventId : null,
     rosterLen: Array.isArray(snap.rosterVkUserIds) ? snap.rosterVkUserIds.length : 0,
+    paidLen: Array.isArray(snap.paidVkUserIds) ? snap.paidVkUserIds.length : 0,
     matchStatus: typeof snap.matchStatus === 'string' ? snap.matchStatus : null,
     vkMuted: snap.vkMuted === true,
   })
@@ -132,6 +133,7 @@ export async function runSiteRosterPollTick(vk, store) {
   }
 
   const roster = Array.isArray(rosterVkUserIds) ? rosterVkUserIds : []
+  const paidVkUserIds = Array.isArray(snap.paidVkUserIds) ? snap.paidVkUserIds : []
   const ev = store.getEvent(gameEventId)
   if (!ev || ev.peerId !== peerId) {
     logWarn(
@@ -181,14 +183,18 @@ export async function runSiteRosterPollTick(vk, store) {
     pollDebug('тик: matchStatus обновлён', { matchStatus })
   }
 
-  const sig = roster.join(',')
+  const paidSig = [...paidVkUserIds]
+    .filter((id) => typeof id === 'number' && Number.isFinite(id))
+    .sort((a, b) => a - b)
+    .join(',')
+  const sig = `${roster.join(',')}|${paidSig}`
   if (ev.lastSiteRosterSig === sig) {
     pollDebug('тик: состав без изменений — список в ВК не трогаем', { ms: Date.now() - t0 })
     return
   }
 
   ev.lastSiteRosterSig = sig
-  applySiteRosterToEvent(ev, roster)
+  applySiteRosterToEvent(ev, roster, paidVkUserIds)
   await refreshListForEvent({ vk, store, event: ev })
   pollDebug('тик: состав применён, список в ВК обновлён', {
     ms: Date.now() - t0,

@@ -197,6 +197,35 @@ export async function fetchFootballSiteRosterSnapshot() {
   }
 }
 
+/**
+ * Синхронизация отметки оплаты с сайтом (после p / unp в чате).
+ * @param {{ vkUserId: number, paid: boolean }} params
+ */
+export async function setPlayerPaidOnFootballSite({ vkUserId, paid }) {
+  const auth = getFootballApiAuth()
+  if (!auth) return null
+  const { apiUrl, token } = auth
+  try {
+    const response = await fetchWithTimeout(`${apiUrl}/api/vk/player-paid`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+        'X-Idempotency-Key': buildApiIdempotencyKey(`player-paid-${paid ? 1 : 0}`, vkUserId),
+      },
+      body: JSON.stringify({ vk_user_id: vkUserId, paid }),
+    })
+    if (!response.ok) {
+      await logHttpNotOk(S, response, 'POST /api/vk/player-paid')
+      return null
+    }
+    return await response.json()
+  } catch (err) {
+    logFootballApiError(`${S}/player-paid`, err, { vkUserId, paid })
+    return null
+  }
+}
+
 /** Сбросить флаг «закрыть список» после runCloseEvent (или noop). */
 export async function ackVkListCloseRequest() {
   const auth = getFootballApiAuth()
