@@ -86,6 +86,44 @@ export function findTeamSlotLabel(teamSlots, rawLabel) {
   return slots.find((s) => String(s ?? '').replace(/\s+/g, ' ').trim().toLowerCase() === want) || null
 }
 
+/**
+ * Явная дата/время + prof или tr (с сайта: s 15.04.2026 20:30 prof).
+ * Для tr — опционально слоты команд после ключа: s … tr Красные, Синие
+ */
+export function parseDatedProfTrCommand(text) {
+  const trimmed = text.trim()
+  const m =
+    /^(s|start)\s+(\d{1,2}\.\d{1,2}\.\d{4})\s+(\d{1,2}:\d{2})\s+(tr|prof)\b(?:\s+(.*))?$/iu.exec(
+      trimmed,
+    )
+  if (!m) return null
+
+  const date = m[2]
+  const timeRaw = m[3]
+  const placeKey = String(m[4] ?? '').toLowerCase()
+  const rest = m[5] != null ? String(m[5]) : ''
+
+  const [dd, mm, yyyy] = date.split('.').map((v) => Number(v))
+  if (!Number.isInteger(dd) || !Number.isInteger(mm) || !Number.isInteger(yyyy)) return null
+  if (yyyy < 2000 || yyyy > 2100) return null
+  if (mm < 1 || mm > 12) return null
+  if (dd < 1 || dd > 31) return null
+
+  const [hh, min] = timeRaw.split(':').map((v) => Number(v))
+  if (!Number.isInteger(hh) || !Number.isInteger(min)) return null
+  if (hh < 0 || hh > 23 || min < 0 || min > 59) return null
+  const time = `${pad2(hh)}:${pad2(min)}`
+
+  if (placeKey === 'tr') {
+    const teamSlots = parseTeamSlotNames(rest.trim())
+    return { date, time, place: 'tr', teamSlots }
+  }
+  if (placeKey === 'prof') {
+    return { date, time, place: 'prof' }
+  }
+  return null
+}
+
 /** Профилакторий: ближайший понедельник 20:30 (МСК). Турнир: ближайшая пятница 20:00 (МСК). */
 export function parsePresetStartCommand(text) {
   const trimmed = text.trim()

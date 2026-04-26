@@ -4,6 +4,7 @@ import { ensureRoster } from '../../services/roster.js'
 import { findTeamSlotLabel } from '../../parsers/startCommand.js'
 import { matchTeamSlotCommand } from '../../parsers/adminChatCommands.js'
 import { isFootballSiteEnabled, registerVkListLinkOnFootballSite } from '../../services/footballApi.js'
+import { isVkTournamentTrListEvent } from '../../utils/vkTournamentListEvent.js'
 
 function ensureTeamSlots(event) {
   ensureRoster(event)
@@ -15,6 +16,11 @@ function ensureTeamSlots(event) {
 export async function tryAddTeamSlots({ vk, store, context, event, text }) {
   const m = matchTeamSlotCommand(text)
   if (!m) return false
+
+  if (!isVkTournamentTrListEvent(event)) {
+    await sendEphemeral(vk, context, 'ℹ️ Команды (+team) только для турнира: s tr.', 4500)
+    return true
+  }
 
   const teamNames = m.teamNames
   if (!teamNames?.length) return true
@@ -47,6 +53,7 @@ export async function tryAddTeamSlots({ vk, store, context, event, text }) {
       peerId: event.peerId,
       gameEventId: event.id,
       teamSlots: [...slots],
+      vkListTournament: true,
     })
   }
 

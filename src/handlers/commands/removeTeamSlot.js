@@ -5,10 +5,16 @@ import { findTeamSlotLabel } from '../../parsers/startCommand.js'
 import { matchRemoveTeamSlotCommand } from '../../parsers/adminChatCommands.js'
 import { isFootballSiteEnabled, registerVkListLinkOnFootballSite, setPlayerTeamOnFootballSite } from '../../services/footballApi.js'
 import { logError } from '../../utils/botLog.js'
+import { isVkTournamentTrListEvent } from '../../utils/vkTournamentListEvent.js'
 
 export async function tryRemoveTeamSlot({ vk, store, context, event, text }) {
   const m = matchRemoveTeamSlotCommand(text)
   if (!m) return false
+
+  if (!isVkTournamentTrListEvent(event)) {
+    await sendEphemeral(vk, context, 'ℹ️ Команды (-team) только для турнира: s tr.', 4500)
+    return true
+  }
 
   ensureRoster(event)
 
@@ -48,6 +54,7 @@ export async function tryRemoveTeamSlot({ vk, store, context, event, text }) {
       peerId: event.peerId,
       gameEventId: event.id,
       teamSlots: [...currentSlots],
+      vkListTournament: true,
     })
   }
 

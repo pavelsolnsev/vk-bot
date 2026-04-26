@@ -1,4 +1,5 @@
 import {
+  parseDatedProfTrCommand,
   parseStartCommand,
   parseTestStartCommand,
   parsePresetStartCommand,
@@ -6,11 +7,13 @@ import {
 import { refreshList } from './context.js'
 import { registerVkListLinkOnFootballSite, isFootballSiteEnabled } from '../../services/footballApi.js'
 import { startSiteRosterPoll } from '../../services/siteRosterPoll.js'
+import { isVkTournamentTrListEvent, vkLinkEventTeamSlotsPayload } from '../../utils/vkTournamentListEvent.js'
 
 export async function tryStartEvent({ vk, store, context, text, peerId, senderId }) {
   const startCmd =
     parseTestStartCommand(text) ??
     parsePresetStartCommand(text) ??
+    parseDatedProfTrCommand(text) ??
     parseStartCommand(text)
   if (!startCmd) return false
 
@@ -33,7 +36,8 @@ export async function tryStartEvent({ vk, store, context, text, peerId, senderId
   const linkOk = await registerVkListLinkOnFootballSite({
     peerId,
     gameEventId: event.id,
-    teamSlots: event.teamSlots,
+    teamSlots: vkLinkEventTeamSlotsPayload(event),
+    vkListTournament: isVkTournamentTrListEvent(event),
   })
   if (linkOk && isFootballSiteEnabled()) {
     startSiteRosterPoll(vk, store)

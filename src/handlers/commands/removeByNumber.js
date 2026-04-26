@@ -5,10 +5,16 @@ import { notifyPromotedToMain } from '../../services/dmNotifications.js'
 import { removePlayerFromFootballSite } from '../../services/footballApi.js'
 import { sendEphemeral } from '../../vk/sendEphemeral.js'
 import { parseRemoveRosterCommand } from '../../parsers/adminChatCommands.js'
+import { isVkTournamentTrListEvent } from '../../utils/vkTournamentListEvent.js'
 
 export async function tryRemoveByNumber({ vk, store, context, event, text }) {
   const parsed = parseRemoveRosterCommand(text)
   if (!parsed) return false
+
+  if (parsed.mode === 'team' && !isVkTournamentTrListEvent(event)) {
+    await sendEphemeral(vk, context, 'ℹ️ Удаление «r Команда N» только для турнира (s tr). Используй rN.', 5000)
+    return true
+  }
 
   const userId =
     parsed.mode === 'team'

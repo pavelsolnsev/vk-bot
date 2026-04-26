@@ -4,10 +4,16 @@ import { sendEphemeral } from '../../vk/sendEphemeral.js'
 import { parsePayRosterCommand, parseUnpayRosterCommand } from '../../parsers/adminChatCommands.js'
 import { getFootballApiAuth } from '../../services/footballApi/siteMode.js'
 import { setPlayerPaidOnFootballSite } from '../../services/footballApi/vkSiteRequests.js'
+import { isVkTournamentTrListEvent } from '../../utils/vkTournamentListEvent.js'
 
 export async function tryPayByNumber({ vk, store, context, event, text }) {
   const parsed = parsePayRosterCommand(text)
   if (!parsed) return false
+
+  if (parsed.mode === 'team' && !isVkTournamentTrListEvent(event)) {
+    await sendEphemeral(vk, context, 'ℹ️ Оплата «p Команда N» только для турнира (s tr). Используй pN.', 5000)
+    return true
+  }
 
   const userId =
     parsed.mode === 'team'
@@ -35,6 +41,11 @@ export async function tryPayByNumber({ vk, store, context, event, text }) {
 export async function tryUnpayByNumber({ vk, store, context, event, text }) {
   const parsed = parseUnpayRosterCommand(text)
   if (!parsed) return false
+
+  if (parsed.mode === 'team' && !isVkTournamentTrListEvent(event)) {
+    await sendEphemeral(vk, context, 'ℹ️ Снятие оплаты «up Команда N» только для турнира (s tr). Используй upN.', 5000)
+    return true
+  }
 
   const userId =
     parsed.mode === 'team'

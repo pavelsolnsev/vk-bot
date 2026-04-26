@@ -6,10 +6,12 @@ import {
 } from './footballApi.js'
 import { refreshList } from '../handlers/commands/context.js'
 import {
+  parseDatedProfTrCommand,
   parsePresetStartCommand,
   parseStartCommand,
   parseTestStartCommand,
 } from '../parsers/startCommand.js'
+import { isVkTournamentTrListEvent, vkLinkEventTeamSlotsPayload } from '../utils/vkTournamentListEvent.js'
 
 const DEFAULT_INTERVAL_MS = 10_000
 
@@ -23,6 +25,7 @@ function resolveStartCommand(commandText) {
   return (
     parseTestStartCommand(text)
     ?? parsePresetStartCommand(text)
+    ?? parseDatedProfTrCommand(text)
     ?? parseStartCommand(text)
   )
 }
@@ -98,12 +101,17 @@ async function runTick(vk, store) {
     date: startCmd.date,
     time: startCmd.time,
     place: startCmd.place,
-    teams: startCmd.teams,
+    teamSlots: startCmd.teamSlots,
   })
 
   try {
     await refreshList({ vk, store, context: { peerId }, event })
-    await registerVkListLinkOnFootballSite({ peerId, gameEventId: event.id, teamSlots: event.teamSlots })
+    await registerVkListLinkOnFootballSite({
+      peerId,
+      gameEventId: event.id,
+      teamSlots: vkLinkEventTeamSlotsPayload(event),
+      vkListTournament: isVkTournamentTrListEvent(event),
+    })
   } catch (err) {
     logError('siteStartRequestPoll/start', err, { peerId })
     // Даже если публикация не удалась — сбрасываем запрос, чтобы не зациклиться.

@@ -159,14 +159,18 @@ export async function setPlayerTeamOnFootballSite({ vkUserId, team }) {
 
 /**
  * После старта списка в чате — сохраняем связь на сайте (без этого сайт→ВК не синкается).
- * @param {{ peerId: number, gameEventId: string, teamSlots?: string[] }} params
+ * @param {{ peerId: number, gameEventId: string, teamSlots?: string[], vkListTournament: boolean }} params — vkListTournament: true только для s tr (place === 'tr').
  */
-export async function registerVkListLinkOnFootballSite({ peerId, gameEventId, teamSlots }) {
+export async function registerVkListLinkOnFootballSite({ peerId, gameEventId, teamSlots, vkListTournament }) {
   const auth = getFootballApiAuth()
   if (!auth) return null
   const { apiUrl, token } = auth
   try {
-    const body = { peer_id: peerId, game_event_id: gameEventId }
+    const body = {
+      peer_id: peerId,
+      game_event_id: gameEventId,
+      vk_list_tournament: vkListTournament === true,
+    }
     // Массив (в т.ч. пустой) — полная пересинхронизация списка кнопок с бота; undefined/null — не трогаем vkTeamSlots на сервере.
     if (Array.isArray(teamSlots)) {
       body.team_slots = teamSlots

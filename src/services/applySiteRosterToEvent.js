@@ -1,5 +1,6 @@
 import { findTeamSlotLabel } from '../parsers/startCommand.js'
 import { ensureRoster } from './roster.js'
+import { isVkTournamentTrListEvent } from '../utils/vkTournamentListEvent.js'
 
 /** Сколько максимум держать id в «хвосте», если сайт ещё не успел включить человека в снимок после join. */
 const DEFAULT_SITE_SYNC_GRACE_MS = 45_000
@@ -36,7 +37,12 @@ export function applySiteRosterToEvent(
 ) {
   ensureRoster(event)
 
-  if (Array.isArray(siteTeamSlots)) {
+  const isTr = isVkTournamentTrListEvent(event)
+  if (!isTr) {
+    // Обычный матч: не тянем команды с сайта — иначе список в ВК превращается в «турнирный».
+    event.teamSlots = null
+    event.participantTeamByVkId = new Map()
+  } else if (Array.isArray(siteTeamSlots)) {
     event.teamSlots = siteTeamSlots.length > 0 ? [...siteTeamSlots] : null
   }
 
@@ -128,7 +134,7 @@ export function applySiteRosterToEvent(
       }
     }
     event.participantTeamByVkId = nextMap
-  } else if (Array.isArray(siteTeamSlots) && siteTeamSlots.length === 0) {
+  } else if (isTr && Array.isArray(siteTeamSlots) && siteTeamSlots.length === 0) {
     event.participantTeamByVkId = new Map()
   }
 }

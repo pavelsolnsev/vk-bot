@@ -5,6 +5,7 @@ import { findTeamSlotLabel } from '../../parsers/startCommand.js'
 import { matchMovePlayerTeamCommand } from '../../parsers/adminChatCommands.js'
 import { setPlayerTeamOnFootballSite, isFootballSiteEnabled } from '../../services/footballApi.js'
 import { logError } from '../../utils/botLog.js'
+import { isVkTournamentTrListEvent } from '../../utils/vkTournamentListEvent.js'
 
 function isNoTeamRaw(teamRaw) {
   const t = String(teamRaw ?? '').replace(/\s+/g, ' ').trim().toLowerCase()
@@ -28,6 +29,11 @@ function pickIdsByTeam(ids, teamSlots, teamMap, wantLabelOrNull) {
 export async function tryMovePlayerTeam({ vk, store, context, event, text }) {
   const m = matchMovePlayerTeamCommand(text)
   if (!m) return false
+
+  if (!isVkTournamentTrListEvent(event)) {
+    await sendEphemeral(vk, context, 'ℹ️ mvteam только для турнира: s tr.', 4500)
+    return true
+  }
 
   ensureRoster(event)
 
