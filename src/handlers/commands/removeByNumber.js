@@ -16,7 +16,7 @@ export async function tryRemoveByNumber({ vk, store, context, event, text }) {
       : getUserIdByIndex(event, parsed.number)
   if (userId == null) {
     // Подсказка для админа, если команда/номер введены с ошибкой.
-    await sendEphemeral(context, '⚠️ Игрок не найден: проверь команду и номер.', 4500)
+    await sendEphemeral(vk, context, '⚠️ Игрок не найден: проверь команду и номер.', 4500)
     return true
   }
 
@@ -29,7 +29,7 @@ export async function tryRemoveByNumber({ vk, store, context, event, text }) {
   // Сначала сайт — при live не снимаем человека из списка ВК.
   const apiRes = await removePlayerFromFootballSite({ vkUserId: userId })
   if (apiRes?.tournamentLive) {
-    await sendEphemeral(context, '⚠️ Идёт live-матч, снять с турнира на сайте нельзя.', 5000)
+    await sendEphemeral(vk, context, '⚠️ Идёт live-матч, снять с турнира на сайте нельзя.', 5000)
     await refreshList({ vk, store, context, event })
     return true
   }

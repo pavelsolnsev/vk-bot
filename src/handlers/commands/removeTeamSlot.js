@@ -17,7 +17,7 @@ export async function tryRemoveTeamSlot({ vk, store, context, event, text }) {
 
   const matched = findTeamSlotLabel(slots, m.teamRaw)
   if (!matched) {
-    await sendEphemeral(context, '⚠️ Такой команды нет.', 3500)
+    await sendEphemeral(vk, context, '⚠️ Такой команды нет.', 3500)
     return true
   }
 

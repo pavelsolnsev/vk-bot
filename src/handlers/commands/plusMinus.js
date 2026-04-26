@@ -20,13 +20,13 @@ export async function tryPlusMinus({ vk, store, context, event, text, senderId }
     const rolledBack = await syncFootballAfterJoin(vk, senderId, res, {
       event,
       onBlocked: () =>
-        sendEphemeral(context, '⚠️ Идёт live-матч, запись в турнир на сайте закрыта.', 5000),
+        sendEphemeral(vk, context, '⚠️ Идёт live-матч, запись в турнир на сайте закрыта.', 5000),
     })
     if (res?.status === 'noop') {
       const msg = event.participants.has(senderId)
         ? 'Вы уже в основном составе.'
         : 'Вы уже в очереди.'
-      await sendEphemeral(context, msg, 5000)
+      await sendEphemeral(vk, context, msg, 5000)
     } else if (res?.status === 'queue' && !rolledBack) {
       await notifyJoinedQueue(vk, senderId)
     }
@@ -46,11 +46,11 @@ export async function tryPlusMinus({ vk, store, context, event, text, senderId }
   if (text === '-') {
     const inRoster = event.participants.has(senderId) || event.queue.has(senderId)
     if (!inRoster) {
-      await sendEphemeral(context, 'Вас нет в списке записи.', 5000)
+      await sendEphemeral(vk, context, 'Вас нет в списке записи.', 5000)
     } else {
       const apiRes = await removePlayerFromFootballSite({ vkUserId: senderId })
       if (apiRes?.tournamentLive) {
-        await sendEphemeral(context, '⚠️ Идёт live-матч, выход из турнира на сайте закрыт.', 5000)
+        await sendEphemeral(vk, context, '⚠️ Идёт live-матч, выход из турнира на сайте закрыт.', 5000)
       } else {
         const res = leaveEvent(event, senderId)
         if (res?.promoted?.length) {

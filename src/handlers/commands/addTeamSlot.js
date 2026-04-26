@@ -38,7 +38,7 @@ export async function tryAddTeamSlots({ vk, store, context, event, text }) {
     const msg = skippedByLimit
       ? 'ℹ️ Лимит кнопок команд достигнут (максимум 9).'
       : 'ℹ️ Команды уже есть в списке.'
-    await sendEphemeral(context, msg, 4000)
+    await sendEphemeral(vk, context, msg, 4000)
     return true
   }
 

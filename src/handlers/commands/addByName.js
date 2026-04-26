@@ -16,6 +16,7 @@ export async function tryAddByName({ vk, store, context, event, text }) {
   const created = await createSyntheticPlayerOnFootballSite({ name })
   if (!created?.ok || typeof created.vk_user_id !== 'number') {
     await sendEphemeral(
+      vk,
       context,
       'Не удалось создать игрока на сайте. Проверь FOOTBALL_API_URL и токен (FOOTBALL_TOKEN = VK_TOKEN на сервере).',
       6500,
@@ -31,7 +32,7 @@ export async function tryAddByName({ vk, store, context, event, text }) {
     overrideFirstName: created.name ?? name,
     overrideLastName: '',
     onBlocked: () =>
-      sendEphemeral(context, '⚠️ Идёт live-матч, запись в турнир на сайте закрыта.', 5000),
+      sendEphemeral(vk, context, '⚠️ Идёт live-матч, запись в турнир на сайте закрыта.', 5000),
   })
   await refreshList({ vk, store, context, event })
   return true

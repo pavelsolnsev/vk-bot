@@ -33,7 +33,7 @@ export async function tryMovePlayerTeam({ vk, store, context, event, text }) {
 
   const teamSlots = Array.isArray(event.teamSlots) ? event.teamSlots : []
   if (!teamSlots.length) {
-    await sendEphemeral(context, '⚠️ В этом матче команды не включены.', 4500)
+    await sendEphemeral(vk, context, '⚠️ В этом матче команды не включены.', 4500)
     return true
   }
 
@@ -44,21 +44,21 @@ export async function tryMovePlayerTeam({ vk, store, context, event, text }) {
   const wantFromNoTeam = isNoTeamRaw(m.fromTeamRaw)
   const fromLabel = wantFromNoTeam ? null : findTeamSlotLabel(teamSlots, m.fromTeamRaw)
   if (!wantFromNoTeam && !fromLabel) {
-    await sendEphemeral(context, '⚠️ Не нашёл команду (откуда).', 4500)
+    await sendEphemeral(vk, context, '⚠️ Не нашёл команду (откуда).', 4500)
     return true
   }
 
   const wantToNoTeam = isNoTeamRaw(m.toTeamRaw)
   const toLabel = wantToNoTeam ? null : findTeamSlotLabel(teamSlots, m.toTeamRaw)
   if (!wantToNoTeam && !toLabel) {
-    await sendEphemeral(context, '⚠️ Не нашёл команду (куда).', 4500)
+    await sendEphemeral(vk, context, '⚠️ Не нашёл команду (куда).', 4500)
     return true
   }
 
   const picked = pickIdsByTeam(ids, teamSlots, event.participantTeamByVkId, fromLabel)
   const userId = picked[index - 1] ?? null
   if (userId == null) {
-    await sendEphemeral(context, '⚠️ Игрок не найден: проверь команду и номер.', 4500)
+    await sendEphemeral(vk, context, '⚠️ Игрок не найден: проверь команду и номер.', 4500)
     return true
   }
 

@@ -1,5 +1,6 @@
 import { logError } from '../../utils/botLog.js'
 import { sendCallbackAnswer, vkShowSnackbarEventData } from '../../vk/callbackAnswer.js'
+import { sendEphemeralPeer } from '../../vk/sendEphemeralPeer.js'
 import { joinEvent, leaveEvent } from '../../services/roster.js'
 import { normalizeButtonPayload } from './normalizeButtonPayload.js'
 import { refreshList } from '../commands/context.js'
@@ -15,8 +16,8 @@ export async function handleEventButton({ vk, store, ctx }) {
   const payload = normalizeButtonPayload(ctx.eventPayload)
   if (!payload) return
 
-  // Текст для show_snackbar — видит только нажавший кнопку.
-  let snackbarText = null
+  // Подсказка только нажавшему: snackbar (часть клиентов) + ЛС «пользователь ↔ сообщество» (телефоны, где snackbar нет).
+  let userNoticeText = null
 
   const event = store.getEvent(payload.gameEventId)
   if (!event) {
@@ -30,16 +31,16 @@ export async function handleEventButton({ vk, store, ctx }) {
       event,
       team: payload.team,
       onBlocked: () => {
-        snackbarText = '⚠️ Идёт live-матч, запись в турнир на сайте закрыта.'
+        userNoticeText = '⚠️ Идёт live-матч, запись в турнир на сайте закрыта.'
       },
     })
     if (res?.status === 'noop') {
       // Уже в основе или в очереди — подсказка только нажавшему (snackbar).
-      snackbarText = event.participants.has(ctx.userId)
+      userNoticeText = event.participants.has(ctx.userId)
         ? 'Вы уже в основном составе.'
         : 'Вы уже в очереди.'
     } else if (res?.status === 'queue' && !rolledBack) {
-      snackbarText = '📢 Вы записаны в очередь.'
+      userNoticeText = '📢 Вы записаны в очередь.'
     }
     if ((res?.status === 'main' || res?.status === 'queue') && !rolledBack) {
       // Ошибка ЛС админам не должна ломать нажатие кнопки «Играть».
@@ -57,12 +58,12 @@ export async function handleEventButton({ vk, store, ctx }) {
     const uid = ctx.userId
     const inRoster = event.participants.has(uid) || event.queue.has(uid)
     if (!inRoster) {
-      snackbarText = 'Вас нет в списке записи.'
+      userNoticeText = 'Вас нет в списке записи.'
     } else {
       // Сначала сайт — при live не трогаем список ВК (иначе пришлось бы откатывать сложнее).
       const apiRes = await removePlayerFromFootballSite({ vkUserId: uid })
       if (apiRes?.tournamentLive) {
-        snackbarText = '⚠️ Идёт live-матч, выход из турнира на сайте закрыт.'
+        userNoticeText = '⚠️ Идёт live-матч, выход из турнира на сайте закрыт.'
       } else {
         const res = leaveEvent(event, uid)
         if (res?.promoted?.length) {
@@ -88,15 +89,21 @@ export async function handleEventButton({ vk, store, ctx }) {
     event.listConversationMessageId = cmid
   }
 
-  const snackbarOpts = snackbarText ? { eventData: vkShowSnackbarEventData(snackbarText) } : {}
+  const answerOpts = userNoticeText ? { eventData: vkShowSnackbarEventData(userNoticeText) } : {}
 
   try {
     await refreshList({ vk, store, context: ctx, event })
   } catch (err) {
     logError('handleEventButton/refreshList', err, { gameEventId: event?.id })
-    await sendCallbackAnswer(vk, ctx, snackbarOpts)
+    await sendCallbackAnswer(vk, ctx, answerOpts)
+    if (userNoticeText) {
+      await sendEphemeralPeer(vk, ctx.userId, userNoticeText, 5000)
+    }
     return
   }
 
-  await sendCallbackAnswer(vk, ctx, snackbarOpts)
+  await sendCallbackAnswer(vk, ctx, answerOpts)
+  if (userNoticeText) {
+    await sendEphemeralPeer(vk, ctx.userId, userNoticeText, 5000)
+  }
 }

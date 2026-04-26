@@ -39,7 +39,7 @@ export function createMessageNewHandler({ vk, store }) {
       if (text === "+" || text === "-") {
         await deleteIncomingCommandMessage(context);
         if (!lastEvent) {
-          await sendEphemeral(context, "⚠️ Матч не запущен", 3000);
+          await sendEphemeral(vk, context, "⚠️ Матч не запущен", 3000);
           return;
         }
         await tryPlusMinus({
@@ -78,14 +78,14 @@ export function createMessageNewHandler({ vk, store }) {
 
       if (isCommandLike && !admin) {
         await deleteIncomingCommandMessage(context);
-        await sendEphemeral(context, "⛔ Нет прав", 3000);
+        await sendEphemeral(vk, context, "⛔ Нет прав", 3000);
         return;
       }
 
       if (/^rdy$/iu.test(text)) {
         await deleteIncomingCommandMessage(context);
         if (!lastEvent) {
-          await sendEphemeral(context, "⚠️ Матч не запущен", 3000);
+          await sendEphemeral(vk, context, "⚠️ Матч не запущен", 3000);
           return;
         }
         await runRdy({ vk, context, event: lastEvent });
@@ -96,7 +96,7 @@ export function createMessageNewHandler({ vk, store }) {
         await deleteIncomingCommandMessage(context);
         const closed = await runCloseEvent({ vk, store, peerId });
         if (!closed) {
-          await sendEphemeral(context, "⚠️ Матч не запущен", 3000);
+          await sendEphemeral(vk, context, "⚠️ Матч не запущен", 3000);
         }
         return;
       }
@@ -112,7 +112,7 @@ export function createMessageNewHandler({ vk, store }) {
       if (startResult) {
         await deleteIncomingCommandMessage(context);
         if (startResult === "already_started") {
-          await sendEphemeral(context, "⚠️ Матч уже запущен", 3000);
+          await sendEphemeral(vk, context, "⚠️ Матч уже запущен", 3000);
         }
         return;
       }
@@ -123,12 +123,13 @@ export function createMessageNewHandler({ vk, store }) {
       if (!lastEvent) {
         if (isCommandLike && !looksLikeStartCommand) {
           await deleteIncomingCommandMessage(context);
-          await sendEphemeral(context, "⚠️ Матч не запущен", 3000);
+          await sendEphemeral(vk, context, "⚠️ Матч не запущен", 3000);
           return;
         }
         if (looksLikeStartCommand) {
           await deleteIncomingCommandMessage(context);
           await sendEphemeral(
+            vk,
             context,
             "⚠️ Формат: s ДД.ММ.ГГГГ ЧЧ:ММ место (пример: s 04.04.2026 18:00 Сатурн) или s prof / s tr [команды через пробел или запятую]",
             5000,

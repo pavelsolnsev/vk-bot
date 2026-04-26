@@ -15,14 +15,14 @@ export async function tryPayByNumber({ vk, store, context, event, text }) {
       : getUserIdByIndex(event, parsed.number)
   if (userId == null) {
     // Явно подсказываем, чтобы админ понял, что индекс/команда не сошлись.
-    await sendEphemeral(context, '⚠️ Игрок не найден: проверь команду и номер.', 4500)
+    await sendEphemeral(vk, context, '⚠️ Игрок не найден: проверь команду и номер.', 4500)
     return true
   }
 
   if (getFootballApiAuth()) {
     const sync = await setPlayerPaidOnFootballSite({ vkUserId: userId, paid: true })
     if (!sync || sync.ok !== true) {
-      await sendEphemeral(context, '⚠️ Не удалось отметить оплату на сайте.', 4500)
+      await sendEphemeral(vk, context, '⚠️ Не удалось отметить оплату на сайте.', 4500)
       return true
     }
   }
@@ -42,14 +42,14 @@ export async function tryUnpayByNumber({ vk, store, context, event, text }) {
       : getUserIdByIndex(event, parsed.number)
   if (userId == null) {
     // Явно подсказываем, чтобы админ понял, что индекс/команда не сошлись.
-    await sendEphemeral(context, '⚠️ Игрок не найден: проверь команду и номер.', 4500)
+    await sendEphemeral(vk, context, '⚠️ Игрок не найден: проверь команду и номер.', 4500)
     return true
   }
 
   if (getFootballApiAuth()) {
     const sync = await setPlayerPaidOnFootballSite({ vkUserId: userId, paid: false })
     if (!sync || sync.ok !== true) {
-      await sendEphemeral(context, '⚠️ Не удалось снять оплату на сайте.', 4500)
+      await sendEphemeral(vk, context, '⚠️ Не удалось снять оплату на сайте.', 4500)
       return true
     }
   }
