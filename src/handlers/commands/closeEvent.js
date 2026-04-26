@@ -1,7 +1,7 @@
 import { logError } from '../../utils/botLog.js'
 import { deleteListMessage } from '../../vk/listMessage.js'
 import { deleteLiveNoticeMessage } from '../../vk/tournamentLiveNotice.js'
-import { unregisterVkListLinkOnFootballSite } from '../../services/footballApi.js'
+import { clearTournamentDataOnFootballSite, unregisterVkListLinkOnFootballSite } from '../../services/footballApi.js'
 
 let stopSiteListPoll = () => {}
 
@@ -35,7 +35,8 @@ export async function runCloseEvent({ vk, store, peerId }) {
   } catch {
     /* ignore */
   }
-  // Сайт больше не должен пушить состав в этот чат (список закрыт); на сайте очищается selectedIds.
+  // Сайт: полный сброс мастера (как «Очистить данные»), затем снятие привязки чата.
+  await clearTournamentDataOnFootballSite().catch((err) => logError('closeEvent/clear-tournament', err))
   await unregisterVkListLinkOnFootballSite().catch((err) => logError('closeEvent/unregister', err))
   stopSiteListPoll()
   return true

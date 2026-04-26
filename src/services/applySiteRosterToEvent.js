@@ -1,3 +1,4 @@
+import { findTeamSlotLabel } from '../parsers/startCommand.js'
 import { ensureRoster } from './roster.js'
 
 /** Сколько максимум держать id в «хвосте», если сайт ещё не успел включить человека в снимок после join. */
@@ -23,9 +24,21 @@ export function noteSiteSyncGraceAfterFootballJoin(event, vkUserId, ttlMs = DEFA
  * @param {object} event — объект события из eventStore (participants, queue, maxPlayers, …)
  * @param {number[]} orderedVkUserIds
  * @param {number[]} [paidVkUserIds] — vk_id с отметкой оплаты с сайта (снимок roster-snapshot)
+ * @param {Record<string, string>} [teamLabelByVkUserId] — команды с сайта (ключ — vk_id строкой)
+ * @param {string[] | null | undefined} [siteTeamSlots] — слоты кнопок с сайта; если передан массив (в т.ч. []), перезаписываем event.teamSlots
  */
-export function applySiteRosterToEvent(event, orderedVkUserIds, paidVkUserIds = []) {
+export function applySiteRosterToEvent(
+  event,
+  orderedVkUserIds,
+  paidVkUserIds = [],
+  teamLabelByVkUserId = {},
+  siteTeamSlots = undefined,
+) {
   ensureRoster(event)
+
+  if (Array.isArray(siteTeamSlots)) {
+    event.teamSlots = siteTeamSlots.length > 0 ? [...siteTeamSlots] : null
+  }
 
   const slots = Array.isArray(event.teamSlots) && event.teamSlots.length ? event.teamSlots : null
   const prevTeams =
@@ -87,13 +100,35 @@ export function applySiteRosterToEvent(event, orderedVkUserIds, paidVkUserIds = 
   event.queueOrder = [...queue]
   event.paidParticipants = nextPaid
 
-  // Сайт не знает про «команды в ВК» — если человек остался в списке, оставляем ему ту же метку для текста.
-  if (prevTeams && slots) {
+  if (slots) {
+    const siteMap =
+      teamLabelByVkUserId && typeof teamLabelByVkUserId === 'object' && !Array.isArray(teamLabelByVkUserId)
+        ? teamLabelByVkUserId
+        : {}
     const nextMap = new Map()
     for (const id of [...main, ...queue]) {
-      const label = prevTeams.get(id)
-      if (label && slots.includes(label)) nextMap.set(id, label)
+      const raw = siteMap[id] ?? siteMap[String(id)]
+      // Ключ в снимке с сайта: пустая строка = сняли команду, не тянем prev.
+      if (raw !== undefined && raw !== null) {
+        if (String(raw).trim() === '') {
+          continue
+        }
+        const m = findTeamSlotLabel(slots, String(raw).trim())
+        if (m) {
+          nextMap.set(id, m)
+          continue
+        }
+      }
+      if (prevTeams) {
+        const label = prevTeams.get(id)
+        if (label) {
+          const p = findTeamSlotLabel(slots, label)
+          if (p) nextMap.set(id, p)
+        }
+      }
     }
     event.participantTeamByVkId = nextMap
+  } else if (Array.isArray(siteTeamSlots) && siteTeamSlots.length === 0) {
+    event.participantTeamByVkId = new Map()
   }
 }

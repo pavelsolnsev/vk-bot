@@ -3,6 +3,7 @@ import { sendEphemeral } from '../../vk/sendEphemeral.js'
 import { ensureRoster } from '../../services/roster.js'
 import { findTeamSlotLabel } from '../../parsers/startCommand.js'
 import { matchTeamSlotCommand } from '../../parsers/adminChatCommands.js'
+import { isFootballSiteEnabled, registerVkListLinkOnFootballSite } from '../../services/footballApi.js'
 
 function ensureTeamSlots(event) {
   ensureRoster(event)
@@ -39,6 +40,14 @@ export async function tryAddTeamSlots({ vk, store, context, event, text }) {
       : 'ℹ️ Команды уже есть в списке.'
     await sendEphemeral(context, msg, 4000)
     return true
+  }
+
+  if (isFootballSiteEnabled()) {
+    await registerVkListLinkOnFootballSite({
+      peerId: event.peerId,
+      gameEventId: event.id,
+      teamSlots: [...slots],
+    })
   }
 
   await refreshList({ vk, store, context, event })

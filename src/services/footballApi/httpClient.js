@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { FOOTBALL_API_SCOPE } from './constants.js'
 
 function getApiTimeoutMs() {
@@ -10,9 +11,28 @@ function getApiIdempotencyWindowMs() {
   return Number.isFinite(ms) && ms > 0 ? ms : 5000
 }
 
-export function buildApiIdempotencyKey(action, vkUserId) {
+/** Соль в X-Idempotency-Key только в ASCII: fetch (undici) не принимает кириллицу в заголовках. */
+function idempotencyExtraSlice(extra) {
+  if (extra == null || String(extra).trim() === '') return ''
+  return `:${createHash('sha256').update(String(extra), 'utf8').digest('base64url').slice(0, 22)}`
+}
+
+/**
+ * @param {string} action
+ * @param {number} vkUserId
+ * @param {string} [extra] — соль (например team); в ключ попадает хэш UTF-8, не сырой текст.
+ */
+export function buildApiIdempotencyKey(action, vkUserId, extra) {
   const bucket = Math.floor(Date.now() / getApiIdempotencyWindowMs())
-  return `${action}:${vkUserId}:${bucket}`
+  const e = idempotencyExtraSlice(extra)
+  return `${action}:${vkUserId}${e}:${bucket}`
+}
+
+let idemRequestSeq = 0
+/** Уникальный хвост в extra для X-Idempotency-Key: иначе кэш на сервере (join/leave/set-team) возвращает старый ответ без БД при повторе в одном 5s bucket. */
+export function nextFootballRequestNonce() {
+  idemRequestSeq += 1
+  return `${Date.now().toString(36)}-${idemRequestSeq}-${Math.random().toString(36).slice(2, 9)}`
 }
 
 export function getSiteRecoveryProbeMs() {

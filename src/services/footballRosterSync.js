@@ -12,11 +12,11 @@ import { registerPlayerOnFootballSite } from './footballApi.js'
  * @param {import('vk-io').VK} vk
  * @param {number} userId
  * @param {{ status?: string } | null | undefined} joinRes
- * @param {{ event?: object | undefined, onBlocked?: () => void | Promise<void>, overrideFirstName?: string, overrideLastName?: string }} [options]
+ * @param {{ event?: object | undefined, onBlocked?: () => void | Promise<void>, overrideFirstName?: string, overrideLastName?: string, team?: string }} [options]
  * @returns {Promise<boolean>} true если запись на сайт заблокирована и join в ВК откатили
  */
 export async function syncFootballAfterJoin(vk, userId, joinRes, options = {}) {
-  const { event, onBlocked, overrideFirstName, overrideLastName } = options
+  const { event, onBlocked, overrideFirstName, overrideLastName, team } = options
   if (joinRes?.status !== 'main' && joinRes?.status !== 'queue') return false
   try {
     let firstName = typeof overrideFirstName === 'string' ? overrideFirstName.trim() : ''
@@ -30,19 +30,25 @@ export async function syncFootballAfterJoin(vk, userId, joinRes, options = {}) {
       lastName = user.last_name ?? ''
     }
     if (!firstName) return false
+
+    // Сразу до POST /api/vk/join: иначе poll сайт→ВК применяет снимок без игрока и снимает его с ВК до ответа join.
+    if (event) {
+      event.footballSiteJoinSeq = (Number(event.footballSiteJoinSeq) || 0) + 1
+      noteSiteSyncGraceAfterFootballJoin(event, userId)
+    }
+
     const result = await registerPlayerOnFootballSite({
       vkUserId: userId,
       firstName,
       lastName,
+      team: typeof team === 'string' && team.trim() ? team.trim() : undefined,
+      joinRequestId: event?.footballSiteJoinSeq,
     })
     // Сайт в live — убираем из списка ВК и даём сигнал показать snackbar / ephemeral.
     if (result?.tournamentLive && event) {
       leaveEvent(event, userId)
       if (typeof onBlocked === 'function') await onBlocked()
       return true
-    }
-    if (result?.ok === true && event) {
-      noteSiteSyncGraceAfterFootballJoin(event, userId)
     }
   } catch (err) {
     logError('syncFootballAfterJoin', err, { userId })

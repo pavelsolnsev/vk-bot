@@ -28,6 +28,7 @@ export async function handleEventButton({ vk, store, ctx }) {
     const res = joinEvent(event, ctx.userId, { team: payload.team })
     const rolledBack = await syncFootballAfterJoin(vk, ctx.userId, res, {
       event,
+      team: payload.team,
       onBlocked: () => {
         snackbarText = '⚠️ Идёт live-матч, запись в турнир на сайте закрыта.'
       },

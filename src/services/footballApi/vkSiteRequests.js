@@ -1,6 +1,6 @@
 import { logHttpNotOk } from '../../utils/botLog.js'
 import { FOOTBALL_API_SCOPE } from './constants.js'
-import { buildApiIdempotencyKey, fetchWithTimeout } from './httpClient.js'
+import { buildApiIdempotencyKey, fetchWithTimeout, nextFootballRequestNonce } from './httpClient.js'
 import { invalidateRatingsCacheForVkUserIds } from './ratings.js'
 import { getFootballApiAuth, logFootballApiError } from './siteMode.js'
 
@@ -20,21 +20,31 @@ const vkJsonHeaders = (token) => ({
  * @param {number} params.vkUserId - Id пользователя в ВКонтакте
  * @param {string} params.firstName - Имя пользователя из ВК
  * @param {string} params.lastName - Фамилия пользователя из ВК
+ * @param {string} [params.team] - Команда с кнопки (турнир с teamSlots)
+ * @param {string|number} [params.joinRequestId] — уникален на каждый join после выхода, иначе кэш idempotency на сервере может отдать старый ответ без повторной записи в БД.
  */
-export async function registerPlayerOnFootballSite({ vkUserId, firstName, lastName }) {
+export async function registerPlayerOnFootballSite({ vkUserId, firstName, lastName, team, joinRequestId }) {
   const auth = getFootballApiAuth()
   if (!auth) return null
   const { apiUrl, token } = auth
 
   try {
+    const teamPayload = typeof team === 'string' && team.trim() ? team.trim() : undefined
+    const body = { vk_user_id: vkUserId, first_name: firstName, last_name: lastName }
+    if (teamPayload) {
+      body.team = teamPayload
+    }
+    const idemExtra = [teamPayload ?? '', joinRequestId != null ? String(joinRequestId) : String(Date.now())]
+      .filter((s) => s.length > 0)
+      .join('\u0001')
     const response = await fetchWithTimeout(`${apiUrl}/api/vk/join`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${token}`,
-        'X-Idempotency-Key': buildApiIdempotencyKey('join', vkUserId),
+        'X-Idempotency-Key': buildApiIdempotencyKey('join', vkUserId, idemExtra),
       },
-      body: JSON.stringify({ vk_user_id: vkUserId, first_name: firstName, last_name: lastName }),
+      body: JSON.stringify(body),
     })
     if (!response.ok) {
       if (response.status === 409) {
@@ -75,7 +85,7 @@ export async function removePlayerFromFootballSite({ vkUserId }) {
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${token}`,
-        'X-Idempotency-Key': buildApiIdempotencyKey('leave', vkUserId),
+        'X-Idempotency-Key': buildApiIdempotencyKey('leave', vkUserId, nextFootballRequestNonce()),
       },
       body: JSON.stringify({ vk_user_id: vkUserId }),
     })
@@ -102,18 +112,69 @@ export async function removePlayerFromFootballSite({ vkUserId }) {
 }
 
 /**
- * После старта списка в чате — сохраняем связь на сайте (без этого сайт→ВК не синкается).
- * @param {{ peerId: number, gameEventId: string }} params
+ * Смена команды на сайте (команда mvteam в боте).
+ * @param {{ vkUserId: number, team: string | null | undefined }} params — null/undefined = без команды
  */
-export async function registerVkListLinkOnFootballSite({ peerId, gameEventId }) {
+export async function setPlayerTeamOnFootballSite({ vkUserId, team }) {
+  const auth = getFootballApiAuth()
+  if (!auth) return null
+  const { apiUrl, token } = auth
+  const teamPayload = typeof team === 'string' && team.trim() ? team.trim() : null
+  const body = { vk_user_id: vkUserId }
+  if (teamPayload) {
+    body.team = teamPayload
+  }
+  try {
+    const idemExtra = [teamPayload ?? '', nextFootballRequestNonce()].filter((s) => s.length > 0).join('\u0001')
+    const response = await fetchWithTimeout(`${apiUrl}/api/vk/set-team`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+        'X-Idempotency-Key': buildApiIdempotencyKey('set-team', vkUserId, idemExtra),
+      },
+      body: JSON.stringify(body),
+    })
+    if (!response.ok) {
+      if (response.status === 409) {
+        try {
+          await response.text()
+        } catch {
+          /* ignore */
+        }
+        return { ok: false, tournamentLive: true }
+      }
+      await logHttpNotOk(S, response, 'POST /api/vk/set-team')
+      return null
+    }
+
+    const data = await response.json()
+    invalidateRatingsCacheForVkUserIds([vkUserId])
+    return data
+  } catch (err) {
+    logFootballApiError(`${S}/set-team`, err, { vkUserId })
+    return null
+  }
+}
+
+/**
+ * После старта списка в чате — сохраняем связь на сайте (без этого сайт→ВК не синкается).
+ * @param {{ peerId: number, gameEventId: string, teamSlots?: string[] }} params
+ */
+export async function registerVkListLinkOnFootballSite({ peerId, gameEventId, teamSlots }) {
   const auth = getFootballApiAuth()
   if (!auth) return null
   const { apiUrl, token } = auth
   try {
+    const body = { peer_id: peerId, game_event_id: gameEventId }
+    // Массив (в т.ч. пустой) — полная пересинхронизация списка кнопок с бота; undefined/null — не трогаем vkTeamSlots на сервере.
+    if (Array.isArray(teamSlots)) {
+      body.team_slots = teamSlots
+    }
     const response = await fetchWithTimeout(`${apiUrl}/api/vk/link-event`, {
       method: 'POST',
       headers: vkJsonHeaders(token),
-      body: JSON.stringify({ peer_id: peerId, game_event_id: gameEventId }),
+      body: JSON.stringify(body),
     })
     if (!response.ok) {
       await logHttpNotOk(S, response, 'POST /api/vk/link-event')
@@ -122,6 +183,31 @@ export async function registerVkListLinkOnFootballSite({ peerId, gameEventId }) 
     return await response.json()
   } catch (err) {
     logFootballApiError(`${S}/link-event`, err, { peerId, gameEventId })
+    return null
+  }
+}
+
+/**
+ * Сброс данных турнира на сайте (как кнопка «Очистить данные»). Вызывается при e! вместе с unlink.
+ * @returns {Promise<object|null>}
+ */
+export async function clearTournamentDataOnFootballSite() {
+  const auth = getFootballApiAuth()
+  if (!auth) return null
+  const { apiUrl, token } = auth
+  try {
+    const response = await fetchWithTimeout(`${apiUrl}/api/vk/clear-tournament`, {
+      method: 'POST',
+      headers: vkJsonHeaders(token),
+      body: JSON.stringify({}),
+    })
+    if (!response.ok) {
+      await logHttpNotOk(S, response, 'POST /api/vk/clear-tournament')
+      return null
+    }
+    return await response.json()
+  } catch (err) {
+    logFootballApiError(`${S}/clear-tournament`, err)
     return null
   }
 }
@@ -211,7 +297,7 @@ export async function setPlayerPaidOnFootballSite({ vkUserId, paid }) {
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${token}`,
-        'X-Idempotency-Key': buildApiIdempotencyKey(`player-paid-${paid ? 1 : 0}`, vkUserId),
+        'X-Idempotency-Key': buildApiIdempotencyKey('player-paid', vkUserId, `${paid ? 1 : 0}\u0001${nextFootballRequestNonce()}`),
       },
       body: JSON.stringify({ vk_user_id: vkUserId, paid }),
     })

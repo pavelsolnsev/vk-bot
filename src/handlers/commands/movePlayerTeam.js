@@ -3,6 +3,8 @@ import { sendEphemeral } from '../../vk/sendEphemeral.js'
 import { ensureRoster } from '../../services/roster.js'
 import { findTeamSlotLabel } from '../../parsers/startCommand.js'
 import { matchMovePlayerTeamCommand } from '../../parsers/adminChatCommands.js'
+import { setPlayerTeamOnFootballSite, isFootballSiteEnabled } from '../../services/footballApi.js'
+import { logError } from '../../utils/botLog.js'
 
 function isNoTeamRaw(teamRaw) {
   const t = String(teamRaw ?? '').replace(/\s+/g, ' ').trim().toLowerCase()
@@ -68,6 +70,11 @@ export async function tryMovePlayerTeam({ vk, store, context, event, text }) {
     event.participantTeamByVkId.set(userId, toLabel)
   } else {
     event.participantTeamByVkId.delete(userId)
+  }
+
+  if (isFootballSiteEnabled()) {
+    setPlayerTeamOnFootballSite({ vkUserId: userId, team: toLabel || null })
+      .catch((err) => logError('movePlayerTeam/setPlayerTeamOnFootballSite', err, { userId, toLabel: toLabel || null }))
   }
 
   await refreshList({ vk, store, context, event })

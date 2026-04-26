@@ -103,7 +103,7 @@ async function runTick(vk, store) {
 
   try {
     await refreshList({ vk, store, context: { peerId }, event })
-    await registerVkListLinkOnFootballSite({ peerId, gameEventId: event.id })
+    await registerVkListLinkOnFootballSite({ peerId, gameEventId: event.id, teamSlots: event.teamSlots })
   } catch (err) {
     logError('siteStartRequestPoll/start', err, { peerId })
     // Даже если публикация не удалась — сбрасываем запрос, чтобы не зациклиться.

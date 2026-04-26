@@ -10,8 +10,10 @@ export {
 export {
   registerPlayerOnFootballSite,
   removePlayerFromFootballSite,
+  setPlayerTeamOnFootballSite,
   registerVkListLinkOnFootballSite,
   unregisterVkListLinkOnFootballSite,
+  clearTournamentDataOnFootballSite,
   createSyntheticPlayerOnFootballSite,
   fetchFootballSiteRosterSnapshot,
   setPlayerPaidOnFootballSite,

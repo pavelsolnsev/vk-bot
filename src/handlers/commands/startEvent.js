@@ -30,7 +30,11 @@ export async function tryStartEvent({ vk, store, context, text, peerId, senderId
 
   await refreshList({ vk, store, context, event })
   // Связь peer + id события на сайте — без этого обратная синхронизация сайт→ВК не работает.
-  const linkOk = await registerVkListLinkOnFootballSite({ peerId, gameEventId: event.id })
+  const linkOk = await registerVkListLinkOnFootballSite({
+    peerId,
+    gameEventId: event.id,
+    teamSlots: event.teamSlots,
+  })
   if (linkOk && isFootballSiteEnabled()) {
     startSiteRosterPoll(vk, store)
   }

@@ -5,7 +5,7 @@ import { refreshListForEvent } from '../handlers/commands/context.js'
 import { runCloseEvent } from '../handlers/commands/closeEvent.js'
 import { deleteLiveNoticeMessage, sendTournamentLiveNotice } from '../vk/tournamentLiveNotice.js'
 
-const DEFAULT_INTERVAL_MS = 22_000
+const DEFAULT_INTERVAL_MS = 10_000
 const POLL_DEBUG = 'siteRosterPoll/debug'
 
 function isSiteRosterPollLogEnabled() {
@@ -187,14 +187,26 @@ export async function runSiteRosterPollTick(vk, store) {
     .filter((id) => typeof id === 'number' && Number.isFinite(id))
     .sort((a, b) => a - b)
     .join(',')
-  const sig = `${roster.join(',')}|${paidSig}`
+  const rawT = snap?.rosterTeamLabelByVkUserId
+  const teamByVk = rawT && typeof rawT === 'object' && !Array.isArray(rawT) ? rawT : {}
+  const teamKeys = Object.keys(teamByVk).sort()
+  const teamPart = teamKeys.map((k) => `${k}:${String(teamByVk[k] ?? '').trim()}`).join(',')
+  const siteSlots = Array.isArray(snap.vkTeamSlots) ? snap.vkTeamSlots : undefined
+  const slotsSig =
+    siteSlots != null
+      ? siteSlots
+          .map((s) => String(s ?? '').replace(/\s+/g, ' ').trim().toLowerCase())
+          .filter(Boolean)
+          .join('|')
+      : ''
+  const sig = `${roster.join(',')}|${paidSig}|${teamPart}|${slotsSig}`
   if (ev.lastSiteRosterSig === sig) {
     pollDebug('тик: состав без изменений — список в ВК не трогаем', { ms: Date.now() - t0 })
     return
   }
 
   ev.lastSiteRosterSig = sig
-  applySiteRosterToEvent(ev, roster, paidVkUserIds)
+  applySiteRosterToEvent(ev, roster, paidVkUserIds, teamByVk, siteSlots)
   await refreshListForEvent({ vk, store, event: ev })
   pollDebug('тик: состав применён, список в ВК обновлён', {
     ms: Date.now() - t0,
