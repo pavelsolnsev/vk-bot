@@ -206,7 +206,7 @@ function formatQueueBlockGrouped(queueNames, queueIds, queueRatings, teamSlots, 
     lines.push(...loose)
   }
 
-  return '\n' + lines.join('\n') + '\n'
+  return lines.join('\n') + '\n'
 }
 
 export function formatPlayersBlock(
@@ -241,5 +241,5 @@ export function formatQueueBlock(
   }
   const header = [`📢 Очередь:`]
   const lines = formatPlayerBlockLines(queueNames, null, queueIds, queueRatings)
-  return '\n' + [...header, ...lines].join('\n') + '\n'
+  return [...header, ...lines].join('\n') + '\n'
 }

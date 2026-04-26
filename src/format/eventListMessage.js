@@ -46,7 +46,8 @@ export function buildEventListText({
 
   let text = ''
 
-  for (const block of blocks) {
+  for (let i = 0; i < blocks.length; i += 1) {
+    const block = blocks[i]
     if (block === 'date') {
       text += formatDateHeading(date, time)
     } else if (block === 'location') {
@@ -72,6 +73,10 @@ export function buildEventListText({
         participantRatings,
         teamOptions,
       )
+      // Пустая строка между «В игре» и следующим списком (очередь), чтобы в ВК не слипалось.
+      if (blocks[i + 1] === 'queue') {
+        text += '\n'
+      }
     } else if (block === 'queue') {
       text += formatQueueBlock(queueNames, queueIds, queueRatings, teamOptions)
     } else if (block === 'summary') {
