@@ -76,6 +76,43 @@ export function stopSiteRosterPoll() {
 }
 
 /**
+ * Закрытие списка по флагу с сайта (closeVkListRequested).
+ * true — запрос был и обработан; дальнейшая логика тика не нужна.
+ * Вызывается из roster poll и из siteStartRequestPoll, чтобы закрытие срабатывало,
+ * даже если список создали с сайта без старта roster poll или после рестарта бота.
+ *
+ * @param {import('vk-io').VK} vk
+ * @param {ReturnType<import('../store/eventStore.js').createEventStore>} store
+ * @param {Record<string, unknown>} snap
+ */
+export async function processCloseVkListRequestIfNeeded(vk, store, snap) {
+  if (snap.closeVkListRequested !== true) return false
+
+  pollDebug('сайт запросил закрытие списка (processClose)', {
+    linked: snap.linked === true,
+    peerId: typeof snap.peerId === 'number' ? snap.peerId : null,
+  })
+
+  if (snap.linked === true && typeof snap.peerId === 'number') {
+    const closed = await runCloseEvent({ vk, store, peerId: snap.peerId })
+    pollDebug('сайт запросил закрытие списка', { closed, peerId: snap.peerId })
+    if (!closed) {
+      await unregisterVkListLinkOnFootballSite().catch((err) =>
+        logError('siteRosterPoll/unregister', err),
+      )
+    }
+  } else {
+    pollDebug('сайт запросил закрытие, linked=false — unlink')
+    await unregisterVkListLinkOnFootballSite().catch((err) =>
+      logError('siteRosterPoll/unregisterNoLink', err),
+    )
+  }
+  await ackVkListCloseRequest().catch((err) => logError('siteRosterPoll/ackClose', err))
+  stopSiteRosterPoll()
+  return true
+}
+
+/**
  * @param {import('vk-io').VK} vk
  * @param {ReturnType<import('../store/eventStore.js').createEventStore>} store
  */
@@ -101,23 +138,7 @@ export async function runSiteRosterPollTick(vk, store) {
     vkMuted: snap.vkMuted === true,
   })
 
-  if (snap.closeVkListRequested === true) {
-    if (snap.linked === true && typeof snap.peerId === 'number') {
-      const closed = await runCloseEvent({ vk, store, peerId: snap.peerId })
-      pollDebug('сайт запросил закрытие списка', { closed, peerId: snap.peerId })
-      if (!closed) {
-        await unregisterVkListLinkOnFootballSite().catch((err) =>
-          logError('siteRosterPoll/unregister', err),
-        )
-      }
-    } else {
-      pollDebug('сайт запросил закрытие, linked=false — unlink')
-      await unregisterVkListLinkOnFootballSite().catch((err) =>
-        logError('siteRosterPoll/unregisterNoLink', err),
-      )
-    }
-    await ackVkListCloseRequest().catch((err) => logError('siteRosterPoll/ackClose', err))
-    stopSiteRosterPoll()
+  if (await processCloseVkListRequestIfNeeded(vk, store, snap)) {
     return
   }
 

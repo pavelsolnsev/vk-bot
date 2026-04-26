@@ -3,7 +3,9 @@ import {
   fetchFootballSiteRosterSnapshot,
   ackVkStartRequest,
   registerVkListLinkOnFootballSite,
+  isFootballSiteEnabled,
 } from './footballApi.js'
+import { startSiteRosterPoll, processCloseVkListRequestIfNeeded } from './siteRosterPoll.js'
 import { refreshList } from '../handlers/commands/context.js'
 import {
   parseDatedProfTrCommand,
@@ -54,6 +56,10 @@ export function startSiteStartRequestPoll(vk, store, intervalMs = DEFAULT_INTERV
 async function runTick(vk, store) {
   const snap = await fetchFootballSiteRosterSnapshot()
   if (!snap) return
+
+  if (await processCloseVkListRequestIfNeeded(vk, store, snap)) {
+    return
+  }
 
   const req = snap.startVkRequested
   if (!req || typeof req.commandText !== 'string' || !req.commandText.trim()) return
@@ -106,12 +112,15 @@ async function runTick(vk, store) {
 
   try {
     await refreshList({ vk, store, context: { peerId }, event })
-    await registerVkListLinkOnFootballSite({
+    const linkOk = await registerVkListLinkOnFootballSite({
       peerId,
       gameEventId: event.id,
       teamSlots: vkLinkEventTeamSlotsPayload(event),
       vkListTournament: isVkTournamentTrListEvent(event),
     })
+    if (linkOk && isFootballSiteEnabled()) {
+      startSiteRosterPoll(vk, store)
+    }
   } catch (err) {
     logError('siteStartRequestPoll/start', err, { peerId })
     // Даже если публикация не удалась — сбрасываем запрос, чтобы не зациклиться.
