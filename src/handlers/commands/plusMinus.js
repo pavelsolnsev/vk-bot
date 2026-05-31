@@ -35,7 +35,6 @@ export async function tryPlusMinus({ vk, store, context, event, text, senderId }
       try {
         await notifyAdminsPlayerJoined(vk, {
           userId: senderId,
-          source: 'plus',
           rosterStatus: res.status,
         })
       } catch (err) {

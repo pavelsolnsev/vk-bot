@@ -48,7 +48,7 @@ export function formatPaymentBlock(loc) {
   return (
     `💸 ОПЛАТА\n` +
     `▸ ${loc.sum} ₽\n` +
-    `▸ Сбербанк (Павел С.): 89166986185\n` +
+    `▸ Сбербанк (Павел С.): +7 916 698-61-85\n` +
     `▸ Наличные — на месте\n` +
     `❗ В комментарии укажи свой ник из списка\n\n`
   )
@@ -60,11 +60,6 @@ export function formatInstructionsBlock(opts = {}) {
     ? `▸ Нажми кнопку с названием своей команды или напиши в чат +\n`
     : `▸ Нажми кнопку Играть или напиши в чат +\n`
   return (
-    `🌐Игроки: https://football.pavelsolntsev.ru\n` +
-    `🏆Команды: https://football.pavelsolntsev.ru/tournament/\n` +
-    `📺Итоги игр и live: https://tournament.pavelsolntsev.ru/\n` +
-    `ℹ️Информация: https://football.pavelsolntsev.ru/info\n` +
-    `📣ВКонтакте: https://vk.com/rmsfootball\n\n` +
     `🕹 КАК ЗАПИСАТЬСЯ\n` +
     joinLine +
     `▸ Нажми кнопку Выйти или напиши в чат -\n\n`

@@ -124,11 +124,11 @@ export function parseDatedProfTrCommand(text) {
   return null
 }
 
-/** Профилакторий: ближайший понедельник 20:30 (МСК). Турнир: ближайшая пятница 20:00 (МСК). */
+/** Профилакторий: ближайший понедельник 20:00 (МСК). Турнир: ближайшая пятница 20:00 (МСК). */
 export function parsePresetStartCommand(text) {
   const trimmed = text.trim()
   if (/^(s|start)\s+prof$/iu.test(trimmed)) {
-    const slot = nextOccurrenceMoscow(1, 20, 30)
+    const slot = nextOccurrenceMoscow(1, 20, 0)
     if (!slot) return null
     return { ...slot, place: 'prof' }
   }

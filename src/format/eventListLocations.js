@@ -36,12 +36,8 @@ export const eventListLocations = {
     address: 'Московская область, г. Раменское, ул. Воровского, д.4A (Красное Знамя)',
     link: 'https://yandex.ru/maps/-/CLuPMJ3L',
     route: 'https://yandex.ru/maps/?mode=routes&rtext=~55.574202,38.205299&rtt=auto',
-    limit: 20,
-    extraInfo: [
-      'Запись: только для участников турнира.',
-      'Формат: в 3 круга каждый с каждым.',
-      'Время: 2 часа.',
-    ],
-    blocks: ['date', 'tournamentTitle', 'location', 'extra', 'instructions', 'players', 'queue', 'summary'],
+    limit: 40,
+    sum: 650,
+    blocks: ['date', 'tournamentTitle', 'location', 'payment', 'instructions', 'players', 'queue', 'summary'],
   },
 }

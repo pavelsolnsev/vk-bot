@@ -1,5 +1,5 @@
 import { sendPrivateMessage } from '../vk/sendPrivateMessage.js'
-import { getAdminVkIds } from '../auth/admin.js'
+import { getAdminVkIds, isAdmin } from '../auth/admin.js'
 import { fetchVkPlayerProfileOnFootballSite } from './footballApi.js'
 import { logError } from '../utils/botLog.js'
 
@@ -103,26 +103,65 @@ async function sendUserBroadcast(vk, userIds, message, scope) {
 }
 
 /**
- * Уведомить всех админов (VK_ADMIN_IDS) в ЛС о записи игрока.
- * Доп. поля в params (source, rosterStatus) оставлены у вызывающего кода, в текст не входят.
+ * Уведомить всех админов о записи игрока.
+ * rosterStatus: 'main' | 'queue' — показывает куда попал.
+ * team: string | undefined — команда, если выбрана.
  */
-export async function notifyAdminsPlayerJoined(vk, { userId }) {
-  // Отправляем уведомление всем админам, включая самого игрока-админа.
-  // Это нужно, чтобы админ видел подтверждение в ЛС, даже если он записался сам.
+export async function notifyAdminsPlayerJoined(vk, { userId, rosterStatus, team }) {
   const admins = getAdminVkIds()
   if (!admins.length || typeof userId !== 'number' || userId <= 0) return
+  // Когда записывается сам админ — уведомление не нужно.
+  if (isAdmin(userId)) return
 
   let whoLines = []
   try {
-    // Если чтение профиля/ВК упало — шлём хотя бы базовый заголовок, без падения бота.
     whoLines = await vkUserNameLines(vk, userId)
   } catch (err) {
     logError('notifyAdminsPlayerJoined/nameLines', err, { userId })
   }
-  const lines = ['➕ Игрок записался в список', ...whoLines]
 
-  const message = lines.join('\n')
-  await sendAdminBroadcast(vk, admins, message, 'notifyAdminsPlayerJoined/send')
+  const statusLabel = rosterStatus === 'queue' ? 'очередь' : 'основа'
+  const header = `➕ Игрок записался · ${statusLabel}`
+  const lines = [header, ...whoLines]
+  if (team) lines.push(`команда: ${team}`)
+
+  await sendAdminBroadcast(vk, admins, lines.join('\n'), 'notifyAdminsPlayerJoined/send')
+}
+
+/**
+ * Уведомить всех админов о том, что VK-сообщение со списком не обновилось (ошибка edit).
+ */
+export async function notifyAdminsListUpdateFailed(vk, { peerId, errorMessage }) {
+  const admins = getAdminVkIds()
+  if (!admins.length) return
+
+  const lines = [
+    '⚠️ Список не обновился в чате',
+    `чат: ${peerId}`,
+    `ошибка: ${errorMessage ?? '—'}`,
+  ]
+  await sendAdminBroadcast(vk, admins, lines.join('\n'), 'notifyAdminsListUpdateFailed/send')
+}
+
+/**
+ * Уведомить всех админов о том, что игрок пытался записаться, но был заблокирован (live-матч).
+ */
+export async function notifyAdminsJoinBlocked(vk, { userId, team }) {
+  const admins = getAdminVkIds()
+  if (!admins.length || typeof userId !== 'number' || userId <= 0) return
+  if (isAdmin(userId)) return
+
+  let whoLines = []
+  try {
+    whoLines = await vkUserNameLines(vk, userId)
+  } catch (err) {
+    logError('notifyAdminsJoinBlocked/nameLines', err, { userId })
+  }
+
+  const lines = ['⛔ Попытка записи — заблокировано (live-матч)', ...whoLines]
+  if (team) lines.push(`команда: ${team}`)
+
+  await sendAdminBroadcast(vk, admins, lines.join('\n'), 'notifyAdminsJoinBlocked/send')
 }
 
 /**

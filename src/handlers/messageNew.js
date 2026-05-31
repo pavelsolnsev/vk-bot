@@ -73,8 +73,8 @@ export function createMessageNewHandler({ vk, store }) {
         /^mvteam\s+/iu.test(text) ||
         /^mvteamq\s+/iu.test(text) ||
         /^\+1test$/iu.test(text) ||
-        text.startsWith("s ") ||
-        text.startsWith("start ");
+        /^s\s/iu.test(text) ||
+        /^start\s/iu.test(text);
 
       if (isCommandLike && !admin) {
         await deleteIncomingCommandMessage(context);
@@ -117,8 +117,7 @@ export function createMessageNewHandler({ vk, store }) {
         return;
       }
 
-      const looksLikeStartCommand =
-        /^s\s+/iu.test(text) || /^start\s+/iu.test(text);
+      const looksLikeStartCommand = /^s\s/iu.test(text) || /^start\s/iu.test(text);
 
       if (!lastEvent) {
         if (isCommandLike && !looksLikeStartCommand) {

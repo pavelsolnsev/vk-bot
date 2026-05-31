@@ -1,5 +1,6 @@
 import { resolveGroupIdForApi } from './groupId.js'
 import { stripDuplicateListBlocks } from '../format/stripDuplicateListBlocks.js'
+import { logError } from '../utils/botLog.js'
 
 const randomSendId = () => Math.floor(Math.random() * 10000) * Date.now()
 
@@ -76,6 +77,7 @@ export async function editListMessage(vk, { peerId, event, text, keyboard }) {
 
 /**
  * Одно «главное» сообщение: первый раз send, далее только edit.
+ * Если edit падает — логируем и пробрасываем ошибку: вызывающий код покажет игроку snackbar.
  */
 export async function syncEventListMessage({ vk, context, event, text, keyboard }) {
   const hasId = event.listConversationMessageId != null || event.listMessageId != null
@@ -87,8 +89,15 @@ export async function syncEventListMessage({ vk, context, event, text, keyboard 
 
   try {
     await editListMessage(vk, { peerId: event.peerId, event, text, keyboard })
-  } catch {
-    // сообщение могло быть удалено или недоступно для редактирования
+  } catch (err) {
+    // Сообщение недоступно для редактирования (удалено, rate-limit, ошибка API).
+    // Логируем и пробрасываем ошибку выше — вызывающий код покажет игроку snackbar.
+    logError('syncEventListMessage/edit', err, {
+      peerId: event.peerId,
+      listConversationMessageId: event.listConversationMessageId,
+      listMessageId: event.listMessageId,
+    })
+    throw err
   }
 }
 

@@ -48,5 +48,13 @@ export function buildEventKeyboard(event) {
     color: Keyboard.NEGATIVE_COLOR,
   })
 
+  // Кнопка оплаты — для всех событий.
+  kb.row()
+  kb.callbackButton({
+    label: '💳 Оплата участия',
+    payload: { cmd: 'payment_info', event_id: eventId },
+    color: Keyboard.PRIMARY_COLOR,
+  })
+
   return kb
 }
