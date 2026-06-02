@@ -170,7 +170,7 @@ export async function handleEventButton({ vk, store, ctx }) {
 
   // Список обновляется в фоне с дебаунсом — несколько одновременных нажатий
   // превращаются в один messages.edit, что устраняет rate-limit VK.
-  scheduleListRefresh({ vk, store, context: ctx, event })
+  scheduleListRefresh({ vk, store, context: ctx, event, userId: ctx.userId })
 
   const answerOpts = userNoticeText ? { eventData: vkShowSnackbarEventData(userNoticeText) } : {}
   await sendCallbackAnswer(vk, ctx, answerOpts)

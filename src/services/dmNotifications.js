@@ -136,7 +136,8 @@ export async function notifyAdminsListUpdateFailed(vk, { peerId, errorMessage })
   if (!admins.length) return
 
   const lines = [
-    '⚠️ Список не обновился в чате',
+    '⚠️ Игрок записался, но список не обновился',
+    '→ Проверь чат, игрок есть в списке но не видит себя',
     `чат: ${peerId}`,
     `ошибка: ${errorMessage ?? '—'}`,
   ]
@@ -169,10 +170,10 @@ export async function notifyAdminsJoinBlocked(vk, { userId, team }) {
  * @param {'main' | 'queue'} params.leftFrom — по-прежнему валидируется.
  */
 export async function notifyAdminsPlayerLeft(vk, { userId, leftFrom }) {
-  // Как и при join: уведомляем всех админов, включая самого игрока-админа.
   const admins = getAdminVkIds()
   if (!admins.length || typeof userId !== 'number' || userId <= 0) return
   if (leftFrom !== 'main' && leftFrom !== 'queue') return
+  if (isAdmin(userId)) return
 
   let whoLines = []
   try {
