@@ -1,77 +1,77 @@
 export function formatDateHeading(dateDdMmYyyy, timeHhMm) {
-  const [dd, mm, yyyy] = dateDdMmYyyy.split('.').map(Number)
-  const [hh, min] = timeHhMm.split(':').map(Number)
-  const d = new Date(yyyy, mm - 1, dd, hh, min)
+  const [dd, mm, yyyy] = dateDdMmYyyy.split(".").map(Number);
+  const [hh, min] = timeHhMm.split(":").map(Number);
+  const d = new Date(yyyy, mm - 1, dd, hh, min);
   if (Number.isNaN(d.getTime())) {
-    return `🕒 ${dateDdMmYyyy} ${timeHhMm}\n\n`
+    return `🕒 ${dateDdMmYyyy} ${timeHhMm}\n\n`;
   }
 
-  const formatted = d.toLocaleString('ru-RU', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'numeric',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
+  const formatted = d.toLocaleString("ru-RU", {
+    weekday: "long",
+    year: "numeric",
+    month: "numeric",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 
-  const parts = formatted.split(', ')
+  const parts = formatted.split(", ");
   if (parts.length >= 3) {
-    const [weekday, datePart, timePart] = parts
-    const wd = weekday.charAt(0).toUpperCase() + weekday.slice(1)
-    return `🕒 ${wd}, ${datePart.replace(' г.', '')}, ${timePart}\n\n`
+    const [weekday, datePart, timePart] = parts;
+    const wd = weekday.charAt(0).toUpperCase() + weekday.slice(1);
+    return `🕒 ${wd}, ${datePart.replace(" г.", "")}, ${timePart}\n\n`;
   }
 
-  return `🕒 ${formatted}\n\n`
+  return `🕒 ${formatted}\n\n`;
 }
 
 export function formatLocationBlock(loc) {
-  const lines = [`📍 МЕСТО ИГРЫ`, `▸ ${loc.address}`]
-  if (loc.link) lines.push(`▸ Карта: ${loc.link}`)
-  if (loc.route) lines.push(`▸ Маршрут: ${loc.route}`)
-  return lines.join('\n') + '\n\n'
+  const lines = [`📍 МЕСТО ИГРЫ`, `▸ ${loc.address}`];
+  if (loc.link) lines.push(`▸ Карта: ${loc.link}`);
+  if (loc.route) lines.push(`▸ Маршрут: ${loc.route}`);
+  return lines.join("\n") + "\n\n";
 }
 
 export function formatTournamentTitle() {
-  return '⚡  ТУРНИР РФОИ  ⚡\n\n'
+  return "⚡  ТУРНИР РФОИ  ⚡\n\n";
 }
 
 export function formatExtraBlock(loc) {
-  if (!Array.isArray(loc.extraInfo) || !loc.extraInfo.length) return ''
-  const lines = ['📋  УСЛОВИЯ ТУРНИРА']
-  loc.extraInfo.forEach((line) => lines.push(`▸ ${line}`))
-  return lines.join('\n') + '\n\n'
+  if (!Array.isArray(loc.extraInfo) || !loc.extraInfo.length) return "";
+  const lines = ["📋  УСЛОВИЯ ТУРНИРА"];
+  loc.extraInfo.forEach((line) => lines.push(`▸ ${line}`));
+  return lines.join("\n") + "\n\n";
 }
 
 export function formatPaymentBlock(loc) {
-  if (typeof loc?.sum !== 'number') return ''
+  if (typeof loc?.sum !== "number") return "";
   return (
     `💸 ОПЛАТА\n` +
     `▸ ${loc.sum} ₽\n` +
     `▸ Сбербанк (Павел С.): +7 916 698-61-85\n` +
     `▸ Наличные — на месте\n` +
     `❗ В комментарии укажи свой ник из списка\n\n`
-  )
+  );
 }
 
 export function formatInstructionsBlock(opts = {}) {
   // Подписи как на сайте: игроки, команды, табло, информация — чтобы люди не путали ссылки.
   const joinLine = opts.teamPickMode
     ? `▸ Нажми кнопку с названием своей команды или напиши в чат +\n`
-    : `▸ Нажми кнопку Играть или напиши в чат +\n`
+    : `▸ Нажми кнопку Играть или напиши в чат +\n`;
   return (
     `🕹 КАК ЗАПИСАТЬСЯ\n` +
     joinLine +
     `▸ Нажми кнопку Выйти или напиши в чат -\n\n`
-  )
+  );
 }
 
 export function formatSummaryBlock(count, limit) {
-  let block
-  if (typeof limit === 'number') {
-    block = `\n📊 Игроков: ${count} из ${limit}\n`
+  let block;
+  if (typeof limit === "number") {
+    block = `\n📊 Игроков: ${count} из ${limit}\n`;
   } else {
-    block = `\n📊 Игроков: ${count}\n`
+    block = `\n📊 Игроков: ${count}\n`;
   }
-  return block
+  return block;
 }
