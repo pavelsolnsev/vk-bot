@@ -316,6 +316,34 @@ export async function setPlayerPaidOnFootballSite({ vkUserId, paid }) {
   }
 }
 
+/**
+ * Сохранить лимит команды на сайте (команда tl в боте) — иначе поллинг вернёт прежнее значение.
+ * @param {{ team: string, limit: number }} params
+ */
+export async function setVkTeamLimitOnFootballSite({ team, limit }) {
+  const auth = getFootballApiAuth()
+  if (!auth) return null
+  const { apiUrl, token } = auth
+  const teamPayload = String(team ?? '').replace(/\s+/g, ' ').trim()
+  const limitNum = Math.floor(Number(limit))
+  if (!teamPayload || !Number.isFinite(limitNum) || limitNum < 1) return null
+  try {
+    const response = await fetchWithTimeout(`${apiUrl}/api/vk/team-limit`, {
+      method: 'POST',
+      headers: vkJsonHeaders(token),
+      body: JSON.stringify({ team: teamPayload, limit: limitNum }),
+    })
+    if (!response.ok) {
+      await logHttpNotOk(S, response, 'POST /api/vk/team-limit')
+      return null
+    }
+    return await response.json()
+  } catch (err) {
+    logFootballApiError(`${S}/team-limit`, err, { team: teamPayload, limit: limitNum })
+    return null
+  }
+}
+
 /** Сбросить флаг «закрыть список» после runCloseEvent (или noop). */
 export async function ackVkListCloseRequest() {
   const auth = getFootballApiAuth()

@@ -29,6 +29,10 @@ export function createEventStore() {
         participantsOrder: [],
         queue: new Set(),
         queueOrder: [],
+        /** Единый порядок записи (основа + очередь) — из него resplitRoster пересчитывает основу/очередь. */
+        rosterOrder: [],
+        /** Лимиты по командам: ключ — нормализованное имя в нижнем регистре, значение — лимит. */
+        teamLimits: new Map(),
         /** кто оплатил (галочка ✅) */
         paidParticipants: new Set(),
         maxPlayers: defaultLimit,

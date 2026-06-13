@@ -243,3 +243,101 @@ export function formatQueueBlock(
   const lines = formatPlayerBlockLines(queueNames, null, queueIds, queueRatings)
   return [...header, ...lines].join('\n') + '\n'
 }
+
+/** Ключ команды как в roster.js (один пробел, без краёв, нижний регистр). */
+function teamKey(name) {
+  return String(name ?? '').replace(/\s+/g, ' ').trim().toLowerCase()
+}
+
+/** Лимит команды из карты teamLimits (Map<normKey, number>), иначе дефолт. */
+function teamLimitNumber(teamLimits, slot, defaultLimit) {
+  const v = teamLimits instanceof Map ? teamLimits.get(teamKey(slot)) : undefined
+  return Number.isFinite(v) && v > 0 ? Math.floor(v) : defaultLimit
+}
+
+/** id → данные строки (имя, оплата, рейтинг) из параллельных массивов. */
+function buildLineDataMap(names, paid, ids, ratings) {
+  const map = new Map()
+  const list = ids ?? []
+  for (let i = 0; i < list.length; i += 1) {
+    map.set(list[i], { name: names?.[i], paid: paid?.[i], rating: ratings?.[i] })
+  }
+  return map
+}
+
+/**
+ * Командный режим: для каждой команды — заголовок «N) Имя — X/лимит», основа,
+ * и сразу под ней очередь этой команды. В конце — «Без команды» (без лимита и очереди).
+ * Заменяет отдельные блоки «В игре» + «Очередь».
+ */
+export function formatTeamSectionsBlock({
+  names,
+  paid,
+  participantIds,
+  participantRatings,
+  queueNames,
+  queueIds,
+  queueRatings,
+  teamSlots,
+  teamMap,
+  teamLimits,
+  defaultLimit,
+}) {
+  const mainData = buildLineDataMap(names, paid, participantIds, participantRatings)
+  const queueData = buildLineDataMap(queueNames, null, queueIds, queueRatings)
+  const mainIds = participantIds ?? []
+  const queueAllIds = queueIds ?? []
+
+  const lines = [`🏆 Составы:`]
+  const usedMain = new Set()
+  const usedQueue = new Set()
+
+  for (const slot of teamSlots) {
+    const mainOfTeam = mainIds.filter((id) => teamLabelForUser(teamSlots, teamMap, id) === slot)
+    const queueOfTeam = queueAllIds.filter((id) => teamLabelForUser(teamSlots, teamMap, id) === slot)
+    const limit = teamLimitNumber(teamLimits, slot, defaultLimit)
+
+    lines.push('')
+    lines.push(`▸ ${slot} — ${mainOfTeam.length}/${limit}`)
+    if (!mainOfTeam.length) {
+      lines.push('— пока никто не записался')
+    } else {
+      mainOfTeam.forEach((id, i) => {
+        const d = mainData.get(id) ?? {}
+        usedMain.add(id)
+        lines.push(formatNumberedPlayerLine(i + 1, d.name, d.paid, id, d.rating))
+      })
+    }
+    if (queueOfTeam.length) {
+      lines.push(`⏳ Очередь:`)
+      queueOfTeam.forEach((id, i) => {
+        const d = queueData.get(id) ?? {}
+        usedQueue.add(id)
+        lines.push(formatNumberedPlayerLine(i + 1, d.name, null, id, d.rating))
+      })
+    }
+  }
+
+  // «Без команды» — только основа, без лимита и очереди.
+  const looseMain = mainIds.filter((id) => !usedMain.has(id))
+  if (looseMain.length) {
+    lines.push('')
+    lines.push(`▸ Без команды`)
+    looseMain.forEach((id, i) => {
+      const d = mainData.get(id) ?? {}
+      lines.push(formatNumberedPlayerLine(i + 1, d.name, d.paid, id, d.rating))
+    })
+  }
+  // Подстраховка: очередь без команды в норме не появляется, но людей не теряем.
+  const looseQueue = queueAllIds.filter((id) => !usedQueue.has(id))
+  if (looseQueue.length) {
+    lines.push('')
+    lines.push(`⏳ Очередь (без команды):`)
+    looseQueue.forEach((id, i) => {
+      const d = queueData.get(id) ?? {}
+      lines.push(formatNumberedPlayerLine(i + 1, d.name, null, id, d.rating))
+    })
+  }
+
+  return lines.join('\n') + '\n'
+}

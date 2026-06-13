@@ -5,6 +5,7 @@ import { runCloseEvent } from "./commands/closeEvent.js";
 import { getLastEventOrNull } from "./commands/lastEvent.js";
 import { tryStartEvent } from "./commands/startEvent.js";
 import { trySetLimit } from "./commands/limit.js";
+import { trySetTeamLimit } from "./commands/teamLimit.js";
 import { tryPayByNumber, tryUnpayByNumber } from "./commands/payByNumber.js";
 import { tryRemoveByNumber } from "./commands/removeByNumber.js";
 import { tryPlusMinus } from "./commands/plusMinus.js";
@@ -60,6 +61,7 @@ export function createMessageNewHandler({ vk, store }) {
         /^rdy$/iu.test(text) ||
         /^e!$/iu.test(text) ||
         /^l(\d+)$/iu.test(text) ||
+        /^tl(\d+)\s+(\d+)$/iu.test(text) ||
         /^p(\d+)$/iu.test(text) ||
         /^p\s+/iu.test(text) ||
         /^up(\d+)$/iu.test(text) ||
@@ -157,6 +159,10 @@ export function createMessageNewHandler({ vk, store }) {
       if (
         await tryAddTestPlayers({ vk, store, context, event: lastEvent, text })
       ) {
+        await deleteIncomingCommandMessage(context);
+        return;
+      }
+      if (await trySetTeamLimit({ vk, store, context, event: lastEvent, text })) {
         await deleteIncomingCommandMessage(context);
         return;
       }

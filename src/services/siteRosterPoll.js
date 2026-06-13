@@ -220,14 +220,20 @@ export async function runSiteRosterPollTick(vk, store) {
           .filter(Boolean)
           .join('|')
       : ''
-  const sig = `${roster.join(',')}|${paidSig}|${teamPart}|${slotsSig}`
+  const rawLimits = snap?.vkTeamLimits
+  const teamLimits = rawLimits && typeof rawLimits === 'object' && !Array.isArray(rawLimits) ? rawLimits : {}
+  const limitsSig = Object.keys(teamLimits)
+    .map((k) => `${String(k).replace(/\s+/g, ' ').trim().toLowerCase()}:${teamLimits[k]}`)
+    .sort()
+    .join('|')
+  const sig = `${roster.join(',')}|${paidSig}|${teamPart}|${slotsSig}|${limitsSig}`
   if (ev.lastSiteRosterSig === sig) {
     pollDebug('тик: состав без изменений — список в ВК не трогаем', { ms: Date.now() - t0 })
     return
   }
 
   ev.lastSiteRosterSig = sig
-  applySiteRosterToEvent(ev, roster, paidVkUserIds, teamByVk, siteSlots)
+  applySiteRosterToEvent(ev, roster, paidVkUserIds, teamByVk, siteSlots, teamLimits)
   await refreshListForEvent({ vk, store, event: ev })
   pollDebug('тик: состав применён, список в ВК обновлён', {
     ms: Date.now() - t0,

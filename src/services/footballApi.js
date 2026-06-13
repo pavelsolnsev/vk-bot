@@ -17,6 +17,7 @@ export {
   createSyntheticPlayerOnFootballSite,
   fetchFootballSiteRosterSnapshot,
   setPlayerPaidOnFootballSite,
+  setVkTeamLimitOnFootballSite,
   ackVkListCloseRequest,
   ackVkStartRequest,
 } from './footballApi/vkSiteRequests.js'

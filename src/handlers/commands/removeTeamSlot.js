@@ -1,6 +1,6 @@
 import { refreshList } from './context.js'
 import { sendEphemeral } from '../../vk/sendEphemeral.js'
-import { ensureRoster } from '../../services/roster.js'
+import { ensureRoster, resplitRoster } from '../../services/roster.js'
 import { findTeamSlotLabel } from '../../parsers/startCommand.js'
 import { matchRemoveTeamSlotCommand } from '../../parsers/adminChatCommands.js'
 import { isFootballSiteEnabled, registerVkListLinkOnFootballSite, setPlayerTeamOnFootballSite } from '../../services/footballApi.js'
@@ -40,6 +40,9 @@ export async function tryRemoveTeamSlot({ vk, store, context, event, text }) {
       }
     }
   }
+
+  // Команда удалена, её игроки ушли в «Без команды» — пересчитываем основу/очередь.
+  resplitRoster(event)
 
   if (isFootballSiteEnabled() && clearedVkIds.length) {
     for (const vkId of clearedVkIds) {

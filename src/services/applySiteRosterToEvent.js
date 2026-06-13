@@ -1,5 +1,5 @@
 import { findTeamSlotLabel } from '../parsers/startCommand.js'
-import { ensureRoster } from './roster.js'
+import { ensureRoster, applyTeamLimitsMap, resplitRoster } from './roster.js'
 import { isVkTournamentTrListEvent } from '../utils/vkTournamentListEvent.js'
 
 /** Сколько максимум держать id в «хвосте», если сайт ещё не успел включить человека в снимок после join. */
@@ -34,6 +34,7 @@ export function applySiteRosterToEvent(
   paidVkUserIds = [],
   teamLabelByVkUserId = {},
   siteTeamSlots = undefined,
+  siteTeamLimits = undefined,
 ) {
   ensureRoster(event)
 
@@ -81,38 +82,18 @@ export function applySiteRosterToEvent(
     }
   }
 
+  // Полный состав с сайта (+ grace-хвост) — множество участников на текущий момент.
   const unique = [...fromSite, ...tail]
 
-  const max = event.maxPlayers
-  const main = unique.slice(0, max)
-  const queue = unique.slice(max)
-
-  const sitePaid = new Set(
-    Array.isArray(paidVkUserIds)
-      ? paidVkUserIds.filter((id) => typeof id === 'number' && Number.isFinite(id) && id !== 0)
-      : [],
-  )
-  const nextPaid = new Set()
-  for (const id of main) {
-    if (sitePaid.has(id)) nextPaid.add(id)
-  }
-  for (const id of queue) {
-    if (sitePaid.has(id)) nextPaid.add(id)
-  }
-
-  event.participants = new Set(main)
-  event.participantsOrder = [...main]
-  event.queue = new Set(queue)
-  event.queueOrder = [...queue]
-  event.paidParticipants = nextPaid
-
+  // Новые метки команд по всему составу (нужны и для разбиения, и для определения переходов).
+  let nextTeamMap = null
   if (slots) {
     const siteMap =
       teamLabelByVkUserId && typeof teamLabelByVkUserId === 'object' && !Array.isArray(teamLabelByVkUserId)
         ? teamLabelByVkUserId
         : {}
-    const nextMap = new Map()
-    for (const id of [...main, ...queue]) {
+    nextTeamMap = new Map()
+    for (const id of unique) {
       const raw = siteMap[id] ?? siteMap[String(id)]
       // Ключ в снимке с сайта: пустая строка = сняли команду, не тянем prev.
       if (raw !== undefined && raw !== null) {
@@ -121,7 +102,7 @@ export function applySiteRosterToEvent(
         }
         const m = findTeamSlotLabel(slots, String(raw).trim())
         if (m) {
-          nextMap.set(id, m)
+          nextTeamMap.set(id, m)
           continue
         }
       }
@@ -129,12 +110,56 @@ export function applySiteRosterToEvent(
         const label = prevTeams.get(id)
         if (label) {
           const p = findTeamSlotLabel(slots, label)
-          if (p) nextMap.set(id, p)
+          if (p) nextTeamMap.set(id, p)
         }
       }
     }
-    event.participantTeamByVkId = nextMap
+  }
+
+  // Порядок записи сохраняем (не сбрасываем!): прежних оставляем как были, новых дописываем в конец.
+  // Иначе при любом изменении состав/очередь «прыгали» бы по порядку с сайта.
+  const siteIdSet = new Set(unique)
+  const prevOrder = Array.isArray(event.rosterOrder) ? event.rosterOrder : []
+  const kept = prevOrder.filter((id) => siteIdSet.has(id))
+  const keptSet = new Set(kept)
+  const appended = unique.filter((id) => !keptSet.has(id))
+  let nextOrder = [...kept, ...appended]
+
+  // Сменившие команду уходят в КОНЕЦ — то есть в хвост очереди новой команды,
+  // не вытесняя тех, кто уже в её основе. Так смена команды на сайте работает как «перешёл в конец».
+  if (slots && prevTeams) {
+    const changed = nextOrder.filter((id) => {
+      const prevRaw = prevTeams.get(id)
+      const prevT = prevRaw ? (findTeamSlotLabel(slots, prevRaw) || null) : null
+      const newT = (nextTeamMap && nextTeamMap.get(id)) || null
+      return prevT !== newT
+    })
+    if (changed.length) {
+      const changedSet = new Set(changed)
+      nextOrder = [...nextOrder.filter((id) => !changedSet.has(id)), ...changed]
+    }
+  }
+
+  if (slots) {
+    event.participantTeamByVkId = nextTeamMap
   } else if (isTr && Array.isArray(siteTeamSlots) && siteTeamSlots.length === 0) {
     event.participantTeamByVkId = new Map()
   }
+
+  // Лимиты команд с сайта (только в командном режиме применяются при разбиении).
+  if (siteTeamLimits !== undefined) {
+    applyTeamLimitsMap(event, siteTeamLimits)
+  }
+
+  // Оплата: отмечаем только тех, кто реально в составе.
+  const sitePaid = new Set(
+    Array.isArray(paidVkUserIds)
+      ? paidVkUserIds.filter((id) => typeof id === 'number' && Number.isFinite(id) && id !== 0)
+      : [],
+  )
+  event.paidParticipants = new Set(unique.filter((id) => sitePaid.has(id)))
+
+  // Состав — единый источник, дальше разбиваем по командам (или общему лимиту).
+  event.rosterOrder = nextOrder
+  resplitRoster(event)
 }

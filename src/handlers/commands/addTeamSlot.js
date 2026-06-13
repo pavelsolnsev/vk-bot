@@ -1,6 +1,6 @@
 import { refreshList } from './context.js'
 import { sendEphemeral } from '../../vk/sendEphemeral.js'
-import { ensureRoster } from '../../services/roster.js'
+import { ensureRoster, resplitRoster } from '../../services/roster.js'
 import { findTeamSlotLabel } from '../../parsers/startCommand.js'
 import { matchTeamSlotCommand } from '../../parsers/adminChatCommands.js'
 import { isFootballSiteEnabled, registerVkListLinkOnFootballSite } from '../../services/footballApi.js'
@@ -47,6 +47,9 @@ export async function tryAddTeamSlots({ vk, store, context, event, text }) {
     await sendEphemeral(vk, context, msg, 4000)
     return true
   }
+
+  // Появились/изменились команды — пересчитываем разбиение основы/очереди по командам.
+  resplitRoster(event)
 
   if (isFootballSiteEnabled()) {
     await registerVkListLinkOnFootballSite({

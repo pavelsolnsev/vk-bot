@@ -2,7 +2,7 @@ import { buildEventListText } from '../format/eventListMessage.js'
 import { stripDuplicateListBlocks } from '../format/stripDuplicateListBlocks.js'
 import { fetchVkRatingsOnFootballSite } from './footballApi.js'
 import { resolveUserNames } from '../vk/userNames.js'
-import { ensureRoster } from './roster.js'
+import { ensureRoster, DEFAULT_TEAM_LIMIT } from './roster.js'
 
 export async function buildEventListMessageBody(vk, userNameCache, event) {
   ensureRoster(event)
@@ -42,6 +42,8 @@ export async function buildEventListMessageBody(vk, userNameCache, event) {
     queueRatings,
     teamSlots: event.teamSlots ?? null,
     participantTeamByVkId: event.participantTeamByVkId ?? null,
+    teamLimits: event.teamLimits ?? null,
+    defaultTeamLimit: DEFAULT_TEAM_LIMIT,
   })
   return stripDuplicateListBlocks(body)
 }

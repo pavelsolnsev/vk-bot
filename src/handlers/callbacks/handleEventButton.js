@@ -11,7 +11,7 @@ import {
   notifyAdminsJoinBlocked,
 } from '../../services/dmNotifications.js'
 import { syncFootballAfterJoin } from '../../services/footballRosterSync.js'
-import { removePlayerFromFootballSite } from '../../services/footballApi.js'
+import { removePlayerFromFootballSite, setPlayerTeamOnFootballSite, isFootballSiteEnabled } from '../../services/footballApi.js'
 import { sendPrivateMessage } from '../../vk/sendPrivateMessage.js'
 import { eventListLocations } from '../../format/eventListLocations.js'
 
@@ -96,48 +96,69 @@ export async function handleEventButton({ vk, store, ctx }) {
   if (payload.cmd === 'join') {
     const res = joinEvent(event, ctx.userId, { team: payload.team })
 
-    // Итог join известен мгновенно (локальная операция) — отвечаем на callback СРАЗУ,
-    // пока event_id «свежий»: снимаем «крутилку» и показываем snackbar.
-    // Раньше ответ шёл в самом конце, после HTTP к сайту и ЛС админам, и под нагрузкой
-    // или тормозах сайта не успевал в окно жизни event_id → у игрока «ошибка» на кнопке.
-    if (res?.status === 'noop') {
-      userNoticeText = event.participants.has(ctx.userId)
-        ? 'Вы уже в основном составе.'
-        : 'Вы уже в очереди.'
-    } else if (res?.status === 'main') {
-      userNoticeText = '✅ Вы записаны!'
-    } else if (res?.status === 'queue') {
-      userNoticeText = '📢 Вы записаны в очередь.'
-    }
-    await sendCallbackAnswer(
-      vk,
-      ctx,
-      userNoticeText ? { eventData: vkShowSnackbarEventData(userNoticeText) } : {},
-    )
-    answered = true
+    if (res?.switched) {
+      // Игрок уже был в списке и нажал кнопку ДРУГОЙ команды — перевели его туда.
+      userNoticeText = res.status === 'queue'
+        ? `🔄 «${res.team}» заполнена — вы в очереди`
+        : `🔄 Вы перешли в «${res.team}»`
+      await sendCallbackAnswer(vk, ctx, { eventData: vkShowSnackbarEventData(userNoticeText) })
+      answered = true
 
-    // Запись на сайт — уже вне «дедлайна» кнопки: спиннер снят, ждать ответа можно спокойно.
-    const rolledBack = await syncFootballAfterJoin(vk, ctx.userId, res, {
-      event,
-      team: payload.team,
-    })
+      // Освободилось место в прежней команде — мог подняться игрок из её очереди.
+      if (res.promoted?.length) {
+        notifyPromotedToMain(vk, res.promoted).catch((err) =>
+          logError('handleEventButton/switchPromoted', err),
+        )
+      }
+      // Синхронизируем смену команды на сайте (как mvteam) — вне «дедлайна» кнопки.
+      if (isFootballSiteEnabled()) {
+        setPlayerTeamOnFootballSite({ vkUserId: ctx.userId, team: res.team })
+          .catch((err) => logError('handleEventButton/switchTeam', err, { userId: ctx.userId }))
+      }
+    } else {
+      // Итог join известен мгновенно (локальная операция) — отвечаем на callback СРАЗУ,
+      // пока event_id «свежий»: снимаем «крутилку» и показываем snackbar.
+      // Раньше ответ шёл в самом конце, после HTTP к сайту и ЛС админам, и под нагрузкой
+      // или тормозах сайта не успевал в окно жизни event_id → у игрока «ошибка» на кнопке.
+      if (res?.status === 'noop') {
+        userNoticeText = event.participants.has(ctx.userId)
+          ? 'Вы уже в основном составе.'
+          : 'Вы уже в очереди.'
+      } else if (res?.status === 'main') {
+        userNoticeText = '✅ Вы записаны!'
+      } else if (res?.status === 'queue') {
+        userNoticeText = '📢 Вы записаны в очередь.'
+      }
+      await sendCallbackAnswer(
+        vk,
+        ctx,
+        userNoticeText ? { eventData: vkShowSnackbarEventData(userNoticeText) } : {},
+      )
+      answered = true
 
-    if ((res?.status === 'main' || res?.status === 'queue') && !rolledBack) {
-      // ЛС админам — вне критического пути нажатия (fire-and-forget): лишние сообщения
-      // не задерживают ответ кнопки и не упираются в rate-limit VK при пиковой записи.
-      notifyAdminsPlayerJoined(vk, {
-        userId: ctx.userId,
-        rosterStatus: res.status,
+      // Запись на сайт — уже вне «дедлайна» кнопки: спиннер снят, ждать ответа можно спокойно.
+      const rolledBack = await syncFootballAfterJoin(vk, ctx.userId, res, {
+        event,
         team: payload.team,
-      }).catch((err) => logError('handleEventButton/notifyJoined', err, { userId: ctx.userId }))
-    }
-    if ((res?.status === 'main' || res?.status === 'queue') && rolledBack) {
-      // Сайт в live — join откатили: корректируем подсказку (уйдёт в ЛС) и зовём админов.
-      userNoticeText = '⚠️ Идёт live-матч, запись в турнир на сайте закрыта.'
-      notifyAdminsJoinBlocked(vk, {
-        userId: ctx.userId,
-        team: payload.team,
-      }).catch((err) => logError('handleEventButton/notifyBlocked', err, { userId: ctx.userId }))
+      })
+
+      if ((res?.status === 'main' || res?.status === 'queue') && !rolledBack) {
+        // ЛС админам — вне критического пути нажатия (fire-and-forget): лишние сообщения
+        // не задерживают ответ кнопки и не упираются в rate-limit VK при пиковой записи.
+        notifyAdminsPlayerJoined(vk, {
+          userId: ctx.userId,
+          rosterStatus: res.status,
+          team: payload.team,
+        }).catch((err) => logError('handleEventButton/notifyJoined', err, { userId: ctx.userId }))
+      }
+      if ((res?.status === 'main' || res?.status === 'queue') && rolledBack) {
+        // Сайт в live — join откатили: корректируем подсказку (уйдёт в ЛС) и зовём админов.
+        userNoticeText = '⚠️ Идёт live-матч, запись в турнир на сайте закрыта.'
+        notifyAdminsJoinBlocked(vk, {
+          userId: ctx.userId,
+          team: payload.team,
+        }).catch((err) => logError('handleEventButton/notifyBlocked', err, { userId: ctx.userId }))
+      }
     }
   } else if (payload.cmd === 'leave') {
     const uid = ctx.userId

@@ -1,6 +1,6 @@
 import { refreshList } from './context.js'
 import { sendEphemeral } from '../../vk/sendEphemeral.js'
-import { ensureRoster } from '../../services/roster.js'
+import { ensureRoster, resplitRoster } from '../../services/roster.js'
 import { findTeamSlotLabel } from '../../parsers/startCommand.js'
 import { matchMovePlayerTeamCommand } from '../../parsers/adminChatCommands.js'
 import { setPlayerTeamOnFootballSite, isFootballSiteEnabled } from '../../services/footballApi.js'
@@ -77,6 +77,9 @@ export async function tryMovePlayerTeam({ vk, store, context, event, text }) {
   } else {
     event.participantTeamByVkId.delete(userId)
   }
+
+  // Смена команды могла переместить игрока между основой/очередью команды — пересчитываем.
+  resplitRoster(event)
 
   if (isFootballSiteEnabled()) {
     setPlayerTeamOnFootballSite({ vkUserId: userId, team: toLabel || null })

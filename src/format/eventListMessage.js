@@ -1,5 +1,5 @@
 import { eventListLocations } from './eventListLocations.js'
-import { formatPlayersBlock, formatQueueBlock } from './eventListPlayers.js'
+import { formatPlayersBlock, formatQueueBlock, formatTeamSectionsBlock } from './eventListPlayers.js'
 import {
   formatDateHeading,
   formatExtraBlock,
@@ -29,6 +29,8 @@ export function buildEventListText({
   queueRatings,
   teamSlots = null,
   participantTeamByVkId = null,
+  teamLimits = null,
+  defaultTeamLimit = 8,
 }) {
   const placeKey = String(place || '')
     .trim()
@@ -65,22 +67,43 @@ export function buildEventListText({
     } else if (block === 'instructions') {
       text += formatInstructionsBlock({ teamPickMode: Boolean(teamOptions) })
     } else if (block === 'players') {
-      text += formatPlayersBlock(
-        names,
-        paid,
-        maxPlayers ?? loc?.limit,
-        participantIds,
-        participantRatings,
-        teamOptions,
-      )
-      // Пустая строка между «В игре» и следующим списком (очередь), чтобы в ВК не слипалось.
-      if (blocks[i + 1] === 'queue') {
-        text += '\n'
+      if (teamOptions) {
+        // Командный режим: один объединённый блок — у каждой команды своя основа и очередь под ней.
+        text += formatTeamSectionsBlock({
+          names,
+          paid,
+          participantIds,
+          participantRatings,
+          queueNames,
+          queueIds,
+          queueRatings,
+          teamSlots: teamOptions.teamSlots,
+          teamMap: teamOptions.participantTeamByVkId,
+          teamLimits,
+          defaultLimit: defaultTeamLimit,
+        })
+      } else {
+        text += formatPlayersBlock(
+          names,
+          paid,
+          maxPlayers ?? loc?.limit,
+          participantIds,
+          participantRatings,
+          teamOptions,
+        )
+        // Пустая строка между «В игре» и следующим списком (очередь), чтобы в ВК не слипалось.
+        if (blocks[i + 1] === 'queue') {
+          text += '\n'
+        }
       }
     } else if (block === 'queue') {
-      text += formatQueueBlock(queueNames, queueIds, queueRatings, teamOptions)
+      // В командном режиме очередь уже встроена в блок команд — отдельный блок пропускаем.
+      if (!teamOptions) {
+        text += formatQueueBlock(queueNames, queueIds, queueRatings, teamOptions)
+      }
     } else if (block === 'summary') {
-      text += formatSummaryBlock(names.length, maxPlayers ?? loc?.limit)
+      // В командном режиме общий лимит не имеет смысла — показываем только число игроков.
+      text += formatSummaryBlock(names.length, teamOptions ? undefined : (maxPlayers ?? loc?.limit))
     }
   }
 

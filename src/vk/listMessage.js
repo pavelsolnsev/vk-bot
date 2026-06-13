@@ -5,6 +5,42 @@ import { logError } from '../utils/botLog.js'
 const randomSendId = () => Math.floor(Math.random() * 10000) * Date.now()
 
 /**
+ * Закрепить сообщение со списком в беседе (один раз, при создании).
+ * Закрепление НЕ убирает inline-клавиатуру с самого сообщения — в плашке закрепа
+ * сверху ВК просто не рисует кнопки (это её обычное поведение), а в ленте всё на месте.
+ * Best-effort: если у сообщества нет прав закреплять в этой беседе — тихо логируем и идём дальше.
+ */
+export async function pinListMessage(vk, { peerId, event }) {
+  const groupId = resolveGroupIdForApi(vk)
+  const params = { peer_id: peerId }
+
+  const cmid = event.listConversationMessageId
+  const mid = event.listMessageId
+  if (cmid != null && cmid > 0) {
+    params.conversation_message_id = cmid
+  } else if (mid != null && mid > 0) {
+    params.message_id = mid
+  } else {
+    return
+  }
+  if (groupId != null) {
+    params.group_id = groupId
+  }
+
+  await vk.api.messages.pin(params)
+  event.listPinned = true
+}
+
+/** Best-effort обёртка: ошибка закрепления (нет прав, rate-limit) не должна ломать создание списка. */
+async function tryPinListMessageAfterSend(vk, peerId, event) {
+  try {
+    await pinListMessage(vk, { peerId, event })
+  } catch (err) {
+    logError('listMessage/pin', err, { peerId, listConversationMessageId: event.listConversationMessageId })
+  }
+}
+
+/**
  * Первое сообщение со списком.
  * Шлём через API с явным peer_id, сохраняем conversation_message_id и message_id.
  */
@@ -36,6 +72,8 @@ export async function sendListMessage(vk, context, event, { text, keyboard }) {
       const mid = item.message_id ?? null
       event.listConversationMessageId = typeof cmid === 'number' && cmid > 0 ? cmid : null
       event.listMessageId = typeof mid === 'number' && mid > 0 ? mid : null
+      // Сразу закрепляем список, чтобы он висел сверху беседы и админу не нужно делать это вручную.
+      await tryPinListMessageAfterSend(vk, context.peerId, event)
       return
     }
   }
@@ -44,6 +82,8 @@ export async function sendListMessage(vk, context, event, { text, keyboard }) {
   if (typeof raw === 'number') {
     event.listMessageId = raw > 0 ? raw : null
     event.listConversationMessageId = null
+    // Сразу закрепляем список и в этом варианте ответа VK.
+    await tryPinListMessageAfterSend(vk, context.peerId, event)
     return
   }
 }
