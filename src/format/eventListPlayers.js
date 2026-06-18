@@ -309,11 +309,14 @@ export function formatTeamSectionsBlock({
       })
     }
     if (queueOfTeam.length) {
-      lines.push(`⏳ Очередь:`)
+      // Очередь команды — отдельным вложенным блоком: пустая строка + отступ,
+      // чтобы она не сливалась с основой команды.
+      lines.push('')
+      lines.push(`   ⏳ Очередь в ${slot}`)
       queueOfTeam.forEach((id, i) => {
         const d = queueData.get(id) ?? {}
         usedQueue.add(id)
-        lines.push(formatNumberedPlayerLine(i + 1, d.name, null, id, d.rating))
+        lines.push(`   ${formatNumberedPlayerLine(i + 1, d.name, null, id, d.rating)}`)
       })
     }
   }
@@ -332,10 +335,10 @@ export function formatTeamSectionsBlock({
   const looseQueue = queueAllIds.filter((id) => !usedQueue.has(id))
   if (looseQueue.length) {
     lines.push('')
-    lines.push(`⏳ Очередь (без команды):`)
+    lines.push(`   ⏳ Очередь (без команды)`)
     looseQueue.forEach((id, i) => {
       const d = queueData.get(id) ?? {}
-      lines.push(formatNumberedPlayerLine(i + 1, d.name, null, id, d.rating))
+      lines.push(`   ${formatNumberedPlayerLine(i + 1, d.name, null, id, d.rating)}`)
     })
   }
 

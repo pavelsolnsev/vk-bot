@@ -344,6 +344,33 @@ export async function setVkTeamLimitOnFootballSite({ team, limit }) {
   }
 }
 
+/**
+ * Сохранить общий лимит списка на сайте (команда l<N> в боте) — иначе поллинг вернёт прежнее значение.
+ * @param {{ limit: number }} params
+ */
+export async function setVkListLimitOnFootballSite({ limit }) {
+  const auth = getFootballApiAuth()
+  if (!auth) return null
+  const { apiUrl, token } = auth
+  const limitNum = Math.floor(Number(limit))
+  if (!Number.isFinite(limitNum) || limitNum < 1) return null
+  try {
+    const response = await fetchWithTimeout(`${apiUrl}/api/vk/list-limit`, {
+      method: 'POST',
+      headers: vkJsonHeaders(token),
+      body: JSON.stringify({ limit: limitNum }),
+    })
+    if (!response.ok) {
+      await logHttpNotOk(S, response, 'POST /api/vk/list-limit')
+      return null
+    }
+    return await response.json()
+  } catch (err) {
+    logFootballApiError(`${S}/list-limit`, err, { limit: limitNum })
+    return null
+  }
+}
+
 /** Сбросить флаг «закрыть список» после runCloseEvent (или noop). */
 export async function ackVkListCloseRequest() {
   const auth = getFootballApiAuth()

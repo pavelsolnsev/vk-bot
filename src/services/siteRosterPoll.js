@@ -226,14 +226,16 @@ export async function runSiteRosterPollTick(vk, store) {
     .map((k) => `${String(k).replace(/\s+/g, ' ').trim().toLowerCase()}:${teamLimits[k]}`)
     .sort()
     .join('|')
-  const sig = `${roster.join(',')}|${paidSig}|${teamPart}|${slotsSig}|${limitsSig}`
+  const listLimitRaw = Number(snap?.vkListLimit)
+  const listLimit = Number.isFinite(listLimitRaw) && listLimitRaw >= 1 ? Math.floor(listLimitRaw) : null
+  const sig = `${roster.join(',')}|${paidSig}|${teamPart}|${slotsSig}|${limitsSig}|ll:${listLimit ?? ''}`
   if (ev.lastSiteRosterSig === sig) {
     pollDebug('тик: состав без изменений — список в ВК не трогаем', { ms: Date.now() - t0 })
     return
   }
 
   ev.lastSiteRosterSig = sig
-  applySiteRosterToEvent(ev, roster, paidVkUserIds, teamByVk, siteSlots, teamLimits)
+  applySiteRosterToEvent(ev, roster, paidVkUserIds, teamByVk, siteSlots, teamLimits, listLimit)
   await refreshListForEvent({ vk, store, event: ev })
   pollDebug('тик: состав применён, список в ВК обновлён', {
     ms: Date.now() - t0,

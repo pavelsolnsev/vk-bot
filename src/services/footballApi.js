@@ -18,6 +18,7 @@ export {
   fetchFootballSiteRosterSnapshot,
   setPlayerPaidOnFootballSite,
   setVkTeamLimitOnFootballSite,
+  setVkListLimitOnFootballSite,
   ackVkListCloseRequest,
   ackVkStartRequest,
 } from './footballApi/vkSiteRequests.js'

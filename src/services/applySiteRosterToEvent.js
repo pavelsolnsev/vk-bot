@@ -35,8 +35,14 @@ export function applySiteRosterToEvent(
   teamLabelByVkUserId = {},
   siteTeamSlots = undefined,
   siteTeamLimits = undefined,
+  siteListLimit = undefined,
 ) {
   ensureRoster(event)
+
+  // Общий лимит списка с сайта — применяем как maxPlayers (влияет только на не-командный split).
+  if (siteListLimit != null && Number.isFinite(siteListLimit) && siteListLimit >= 1) {
+    event.maxPlayers = Math.floor(siteListLimit)
+  }
 
   const isTr = isVkTournamentTrListEvent(event)
   if (!isTr) {
