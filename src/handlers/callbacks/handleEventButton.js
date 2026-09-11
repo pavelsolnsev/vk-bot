@@ -35,7 +35,10 @@ export async function handleEventButton({ vk, store, ctx }) {
 
   const event = store.getEvent(payload.gameEventId)
   if (!event) {
-    await sendCallbackAnswer(vk, ctx, {})
+    // Список закрыт или потерян — молчать нельзя: человек жмёт и не понимает, почему ничего не происходит.
+    await sendCallbackAnswer(vk, ctx, {
+      eventData: vkShowSnackbarEventData('⚠️ Этот список больше не активен — попроси админа создать новый'),
+    })
     return
   }
 

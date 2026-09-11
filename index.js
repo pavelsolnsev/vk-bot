@@ -5,8 +5,13 @@ import { createMessageNewHandler } from './src/handlers/messageNew.js'
 import { createMessageEventHandler } from './src/handlers/messageEvent.js'
 import { startNotifyLoop } from './src/services/checkTimeAndNotify.js'
 import { startSiteStartRequestPoll } from './src/services/siteStartRequestPoll.js'
-import { stopSiteRosterPoll } from './src/services/siteRosterPoll.js'
-import { initializeFootballSiteMode } from './src/services/footballApi.js'
+import { startSiteRosterPoll, stopSiteRosterPoll } from './src/services/siteRosterPoll.js'
+import { initializeFootballSiteMode, isFootballSiteEnabled } from './src/services/footballApi.js'
+import {
+  loadEventStoreFromDisk,
+  saveEventStoreToDisk,
+  startEventStorePersist,
+} from './src/store/eventStorePersist.js'
 import { setSiteListPollStop } from './src/handlers/commands/closeEvent.js'
 import { logError, logWarn } from './src/utils/botLog.js'
 import { getAdminVkIds } from './src/auth/admin.js'
@@ -257,11 +262,39 @@ async function runUpdatesForever() {
   }
 }
 
+/** Сохраняем состояние перед выходом: pm2 при рестарте шлёт SIGINT, деплой — SIGTERM. */
+function installShutdownSave() {
+  let stopping = false
+  const flush = (signal) => {
+    if (stopping) return
+    stopping = true
+    saveEventStoreToDisk(store, { force: true })
+    logWarn('shutdown', 'Состояние списка сохранено, выходим', { signal })
+    process.exit(0)
+  }
+  process.once('SIGINT', () => flush('SIGINT'))
+  process.once('SIGTERM', () => flush('SIGTERM'))
+}
+
 async function main() {
   await initializeFootballSiteMode()
   setSiteListPollStop(stopSiteRosterPoll)
+
+  // Поднимаем списки прошлого запуска — рестарт больше не убивает кнопки в чате.
+  const restoredCount = loadEventStoreFromDisk(store)
+  if (restoredCount > 0) {
+    logWarn('startup', 'Список из прошлого запуска восстановлен', { restoredCount })
+  }
+  startEventStorePersist(store)
+  installShutdownSave()
+
   startNotifyLoop(vk, store)
   startSiteStartRequestPoll(vk, store)
+  // Синхронизацию состава сама по себе поднимает только создание списка,
+  // поэтому после восстановления запускаем её здесь — иначе сайт и чат разъедутся.
+  if (restoredCount > 0 && isFootballSiteEnabled()) {
+    startSiteRosterPoll(vk, store)
+  }
   startHeartbeat()
   await runUpdatesForever()
 }

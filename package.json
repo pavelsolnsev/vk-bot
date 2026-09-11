@@ -7,8 +7,9 @@
     "start": "node index.js",
     "dev": "node index.js",
     "selftest:team": "node scripts/selftest-team-mode.js",
+    "selftest:persist": "node scripts/selftest-persist.js",
     "selftest:admin": "node scripts/selftest-admin-commands.js",
-    "selftest": "npm run selftest:admin && npm run selftest:team",
+    "selftest": "npm run selftest:admin && npm run selftest:team && npm run selftest:persist",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
