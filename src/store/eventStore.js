@@ -8,7 +8,7 @@ export function createEventStore() {
     lastEventByPeer,
     userNameCache,
 
-    createEvent({ peerId, senderId, date, time, place, teamSlots }) {
+    createEvent({ peerId, senderId, date, time, place, teamSlots, sum }) {
       const id = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`
       const placeKey = String(place || '').trim().toLowerCase()
       const defaultLimit = placeKey === 'saturn' ? 10 : 20
@@ -21,6 +21,8 @@ export function createEventStore() {
         date,
         time,
         place,
+        /** Сумма участия, введённая на сайте при создании матча (null — сумма локации по умолчанию). */
+        sum: Number.isFinite(Number(sum)) && Number(sum) > 0 ? Math.round(Number(sum)) : null,
         /** для турнира (tr): подписи кнопок и групп в списке; лимит/очередь общие как раньше */
         teamSlots: slots,
         /** vk id → название команды из teamSlots (только подсказка для текста в чате) */

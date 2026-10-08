@@ -13,15 +13,12 @@ import {
 import { syncFootballAfterJoin } from '../../services/footballRosterSync.js'
 import { removePlayerFromFootballSite, setPlayerTeamOnFootballSite, isFootballSiteEnabled } from '../../services/footballApi.js'
 import { sendPrivateMessage } from '../../vk/sendPrivateMessage.js'
-import { eventListLocations } from '../../format/eventListLocations.js'
+import { resolveEventSum } from '../../format/eventSum.js'
 
 const PAYMENT_INFO_TEXT =
   '💳 Сбербанк (Павел С.):\n89166986185\n\n❗ В комментарии укажи свой ник из списка'
 
-function resolveEventSum(event) {
-  const key = String(event?.place ?? '').trim().toLowerCase()
-  return eventListLocations[key]?.sum ?? null
-}
+
 
 export async function handleEventButton({ vk, store, ctx }) {
   const payload = normalizeButtonPayload(ctx.eventPayload)

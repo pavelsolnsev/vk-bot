@@ -3,6 +3,7 @@ import { stripDuplicateListBlocks } from '../format/stripDuplicateListBlocks.js'
 import { fetchVkRatingsOnFootballSite } from './footballApi.js'
 import { resolveUserNames } from '../vk/userNames.js'
 import { ensureRoster, DEFAULT_TEAM_LIMIT } from './roster.js'
+import { explicitEventSum } from '../format/eventSum.js'
 
 export async function buildEventListMessageBody(vk, userNameCache, event) {
   ensureRoster(event)
@@ -32,6 +33,7 @@ export async function buildEventListMessageBody(vk, userNameCache, event) {
     date: event.date,
     time: event.time,
     place: event.place,
+    sum: explicitEventSum(event),
     names,
     paid,
     queueNames,

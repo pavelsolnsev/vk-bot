@@ -31,6 +31,8 @@ export function buildEventListText({
   participantTeamByVkId = null,
   teamLimits = null,
   defaultTeamLimit = 8,
+  /** Сумма участия, введённая при создании матча; null — берём сумму локации. */
+  sum = null,
 }) {
   const placeKey = String(place || '')
     .trim()
@@ -63,7 +65,8 @@ export function buildEventListText({
     } else if (block === 'extra') {
       text += formatExtraBlock(loc)
     } else if (block === 'payment') {
-      text += formatPaymentBlock(loc)
+      // Сумма с сайта важнее суммы по умолчанию для локации.
+      text += formatPaymentBlock(typeof sum === 'number' && sum > 0 ? { ...loc, sum } : loc)
     } else if (block === 'instructions') {
       text += formatInstructionsBlock({ teamPickMode: Boolean(teamOptions) })
     } else if (block === 'players') {

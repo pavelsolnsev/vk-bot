@@ -108,6 +108,8 @@ async function runTick(vk, store) {
     time: startCmd.time,
     place: startCmd.place,
     teamSlots: startCmd.teamSlots,
+    // Сумма участия, введённая на сайте в форме «Создать матч».
+    sum: req.sum,
   })
 
   try {

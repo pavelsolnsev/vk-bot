@@ -1,3 +1,4 @@
+import { explicitEventSum } from '../format/eventSum.js'
 import { logError } from '../utils/botLog.js'
 import { resolveGroupIdForApi } from '../vk/groupId.js'
 import { sendPrivateMessage } from '../vk/sendPrivateMessage.js'
@@ -47,7 +48,11 @@ function buildNotifyText(event, startsAt) {
     )
   }
 
-  const sumLine = typeof loc?.sum === 'number' ? `• Оплатить участие (${loc.sum} ₽)\n` : ''
+  // Оплата строго до игры; сумму локации добавляем в скобках, если она известна.
+  const sum = explicitEventSum(event) ?? loc?.sum
+  const sumLine = typeof sum === 'number'
+    ? `• Участие оплатить до начала игры (${sum} ₽)\n`
+    : '• Участие оплатить до начала игры\n'
 
   return (
     '⏰ Матч начнётся через 3 часа!\n\n' +
