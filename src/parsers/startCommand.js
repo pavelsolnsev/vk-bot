@@ -93,7 +93,7 @@ export function findTeamSlotLabel(teamSlots, rawLabel) {
 export function parseDatedProfTrCommand(text) {
   const trimmed = text.trim()
   const m =
-    /^(s|start)\s+(\d{1,2}\.\d{1,2}\.\d{4})\s+(\d{1,2}:\d{2})\s+(tr|prof)\b(?:\s+(.*))?$/iu.exec(
+    /^(s|start)\s+(\d{1,2}\.\d{1,2}\.\d{4})\s+(\d{1,2}:\d{2})\s+(tr|prof|kz)\b(?:\s+(.*))?$/iu.exec(
       trimmed,
     )
   if (!m) return null
@@ -120,6 +120,10 @@ export function parseDatedProfTrCommand(text) {
   }
   if (placeKey === 'prof') {
     return { date, time, place: 'prof' }
+  }
+  // Обычный сбор на Красном Знамени (с сайта: s 15.04.2026 20:00 kz).
+  if (placeKey === 'kz') {
+    return { date, time, place: 'kz' }
   }
   return null
 }

@@ -41,3 +41,24 @@ export const eventListLocations = {
     blocks: ['date', 'tournamentTitle', 'location', 'payment', 'instructions', 'players', 'queue', 'summary'],
   },
 }
+
+/** Где проходит турнир (s tr): адрес, карта и маршрут берутся у этой площадки. */
+export const TOURNAMENT_VENUES = ['kz', 'prof']
+
+/** Площадка турнира из события: kz / prof; нет или неизвестна — Красное Знамя, как было раньше. */
+export function resolveTournamentVenue(venue) {
+  const key = String(venue ?? '').trim().toLowerCase()
+  return TOURNAMENT_VENUES.includes(key) ? key : 'kz'
+}
+
+/**
+ * Описание локации для списка. Для турнира подменяем место (название, адрес, карту, маршрут)
+ * на выбранную площадку, а сумму, лимит и блоки оставляем турнирные.
+ */
+export function resolveEventLocation(place, venue) {
+  const placeKey = String(place ?? '').trim().toLowerCase()
+  const loc = eventListLocations[placeKey] || null
+  if (!loc || placeKey !== 'tr') return loc
+  const v = eventListLocations[resolveTournamentVenue(venue)]
+  return { ...loc, name: v.name, address: v.address, link: v.link, route: v.route }
+}

@@ -1,3 +1,4 @@
+import { resolveTournamentVenue } from '../format/eventListLocations.js'
 import { explicitEventSum } from '../format/eventSum.js'
 import { logError } from '../utils/botLog.js'
 import { resolveGroupIdForApi } from '../vk/groupId.js'
@@ -40,7 +41,7 @@ function buildNotifyText(event, startsAt) {
       '🏆 ⚡ Турнир ⚡\n\n' +
       '⏰ Начало через 3 часа!\n' +
       `📅 Когда: ${formatWhen(startsAt)}\n` +
-      `📍 Локация: ${loc?.name || event.place}\n\n` +
+      `📍 Локация: ${locations[resolveTournamentVenue(event.venue)]?.name || loc?.name || event.place}\n\n` +
       '✅ Что нужно сделать:\n' +
       '• Прибыть за 15 минут до начала\n' +
       notifyLiveLine +

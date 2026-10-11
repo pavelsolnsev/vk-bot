@@ -110,6 +110,8 @@ async function runTick(vk, store) {
     teamSlots: startCmd.teamSlots,
     // Сумма участия, введённая на сайте в форме «Создать матч».
     sum: req.sum,
+    // Площадка турнира (Красное Знамя / Профилакторий), выбранная на сайте.
+    venue: req.venue,
   })
 
   try {

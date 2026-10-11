@@ -1,4 +1,4 @@
-import { eventListLocations } from './eventListLocations.js'
+import { resolveEventLocation } from './eventListLocations.js'
 import { formatPlayersBlock, formatQueueBlock, formatTeamSectionsBlock } from './eventListPlayers.js'
 import {
   formatDateHeading,
@@ -33,11 +33,13 @@ export function buildEventListText({
   defaultTeamLimit = 8,
   /** Сумма участия, введённая при создании матча; null — берём сумму локации. */
   sum = null,
+  /** Площадка турнира (kz / prof) — только для place = tr. */
+  venue = null,
 }) {
   const placeKey = String(place || '')
     .trim()
     .toLowerCase()
-  const loc = eventListLocations[placeKey] || null
+  const loc = resolveEventLocation(placeKey, venue)
 
   const teamOptions =
     Array.isArray(teamSlots) && teamSlots.length && participantTeamByVkId instanceof Map
