@@ -1,4 +1,4 @@
-import { logError } from '../../utils/botLog.js'
+import { logError, logEvent } from '../../utils/botLog.js'
 import { sendCallbackAnswer, vkShowSnackbarEventData } from '../../vk/callbackAnswer.js'
 import { sendEphemeralPeer } from '../../vk/sendEphemeralPeer.js'
 import { joinEvent, leaveEvent } from '../../services/roster.js'
@@ -192,6 +192,17 @@ export async function handleEventButton({ vk, store, ctx }) {
         }).catch((err) => logError('handleEventButton/notifyLeft', err, { userId: uid }))
       }
     }
+  }
+
+  // Одна строка на нажатие «Играть» / «Выйти»: кто, что нажал и чем кончилось (для разбора по логам).
+  if (payload.cmd === 'join' || payload.cmd === 'leave') {
+    logEvent('button', payload.cmd, {
+      userId: ctx.userId,
+      team: payload.team ?? null,
+      notice: userNoticeText,
+      inMain: event.participants.has(ctx.userId),
+      inQueue: event.queue.has(ctx.userId),
+    })
   }
 
   // conversation_message_id — ID сообщения, к которому прикреплена кнопка.

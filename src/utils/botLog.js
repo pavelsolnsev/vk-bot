@@ -46,3 +46,19 @@ export async function logHttpNotOk(scope, response, label) {
   }
   logWarn(scope, `${label} HTTP ${response.status}`, { body: body || '(пусто)' })
 }
+
+/**
+ * Обычное событие (не ошибка) с временем — для разбора «нажал, а ничего не произошло».
+ * Пишется в out-лог PM2: grep "[vk-bot:event" ~/.pm2/logs/vk-bot-out.log
+ * @param {string} scope
+ * @param {string} message
+ * @param {Record<string, unknown>} [meta]
+ */
+export function logEvent(scope, message, meta) {
+  const prefix = `[vk-bot:event:${scope}] ${new Date().toISOString()}`
+  if (meta && Object.keys(meta).length > 0) {
+    console.log(prefix, message, JSON.stringify(meta))
+  } else {
+    console.log(prefix, message)
+  }
+}

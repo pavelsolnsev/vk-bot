@@ -1,4 +1,4 @@
-import { logError, logWarn } from '../utils/botLog.js'
+import { logError, logWarn, logEvent } from '../utils/botLog.js'
 import { fetchFootballSiteRosterSnapshot, ackVkListCloseRequest, unregisterVkListLinkOnFootballSite } from './footballApi.js'
 import { applySiteRosterToEvent } from './applySiteRosterToEvent.js'
 import { refreshListForEvent } from '../handlers/commands/context.js'
@@ -235,7 +235,22 @@ export async function runSiteRosterPollTick(vk, store) {
   }
 
   ev.lastSiteRosterSig = sig
+  // Кто был в списке бота до сверки — чтобы залогировать, кого сайт убрал (главный признак
+  // «нажал кнопку, а ничего не произошло»: бот записал, а сверка с сайтом стёрла).
+  const beforeIds = new Set([...(ev.participants ?? []), ...(ev.queue ?? [])])
   applySiteRosterToEvent(ev, roster, paidVkUserIds, teamByVk, siteSlots, teamLimits, listLimit)
+  const afterIds = new Set([...(ev.participants ?? []), ...(ev.queue ?? [])])
+  const droppedBySite = [...beforeIds].filter((id) => !afterIds.has(id))
+  const addedBySite = [...afterIds].filter((id) => !beforeIds.has(id))
+  if (droppedBySite.length || addedBySite.length) {
+    logEvent('siteRosterPoll', 'сверка с сайтом изменила список', {
+      peerId,
+      gameEventId,
+      droppedBySite,
+      addedBySite,
+      total: afterIds.size,
+    })
+  }
   await refreshListForEvent({ vk, store, event: ev })
   pollDebug('тик: состав применён, список в ВК обновлён', {
     ms: Date.now() - t0,
