@@ -4,6 +4,7 @@ import { createEventStore } from './src/store/eventStore.js'
 import { createMessageNewHandler } from './src/handlers/messageNew.js'
 import { createMessageEventHandler } from './src/handlers/messageEvent.js'
 import { startNotifyLoop } from './src/services/checkTimeAndNotify.js'
+import { startListKeyboardWatchdog } from './src/services/listKeyboardWatchdog.js'
 import { startSiteStartRequestPoll } from './src/services/siteStartRequestPoll.js'
 import { startSiteRosterPoll, stopSiteRosterPoll } from './src/services/siteRosterPoll.js'
 import { initializeFootballSiteMode, isFootballSiteEnabled } from './src/services/footballApi.js'
@@ -295,6 +296,8 @@ async function main() {
   if (restoredCount > 0 && isFootballSiteEnabled()) {
     startSiteRosterPoll(vk, store)
   }
+  // Сторож кнопок: пропали у списка — перерисует, пропал сам список — отправит заново.
+  startListKeyboardWatchdog(vk, store)
   startHeartbeat()
   await runUpdatesForever()
 }

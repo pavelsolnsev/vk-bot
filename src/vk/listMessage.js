@@ -124,11 +124,14 @@ export async function syncEventListMessage({ vk, context, event, text, keyboard 
 
   if (!hasId) {
     await sendListMessage(vk, context, event, { text, keyboard })
+    event.lastListRenderAt = Date.now()
     return
   }
 
   try {
     await editListMessage(vk, { peerId: event.peerId, event, text, keyboard })
+    // Когда список последний раз успешно перерисован — по этому времени сторож кнопок делает плановую перерисовку.
+    event.lastListRenderAt = Date.now()
   } catch (err) {
     // Сообщение недоступно для редактирования (удалено, rate-limit, ошибка API).
     // Логируем и пробрасываем ошибку выше — вызывающий код покажет игроку snackbar.
