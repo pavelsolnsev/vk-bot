@@ -1,4 +1,5 @@
 import { isAdmin } from "../auth/admin.js";
+import { runReopenRegistration } from "./commands/reopenRegistration.js";
 import { deleteIncomingCommandMessage } from "../vk/deleteIncomingCommandMessage.js";
 import { sendEphemeral } from "../vk/sendEphemeral.js";
 import { runCloseEvent } from "./commands/closeEvent.js";
@@ -60,6 +61,7 @@ export function createMessageNewHandler({ vk, store }) {
       const isCommandLike =
         /^rdy$/iu.test(text) ||
         /^e!$/iu.test(text) ||
+        /^open!$/iu.test(text) ||
         /^l(\d+)$/iu.test(text) ||
         /^tl(\d+)\s+(\d+)$/iu.test(text) ||
         /^p(\d+)$/iu.test(text) ||
@@ -100,6 +102,17 @@ export function createMessageNewHandler({ vk, store }) {
         if (!closed) {
           await sendEphemeral(vk, context, "⚠️ Матч не запущен", 3000);
         }
+        return;
+      }
+
+      // open! — снова открыть запись, если матч на сайте запустили случайно (кнопки «Играть»/«Выйти» вернутся).
+      if (/^open!$/iu.test(text)) {
+        await deleteIncomingCommandMessage(context);
+        if (!lastEvent) {
+          await sendEphemeral(vk, context, "⚠️ Матч не запущен", 3000);
+          return;
+        }
+        await runReopenRegistration({ vk, store, context, event: lastEvent });
         return;
       }
 
