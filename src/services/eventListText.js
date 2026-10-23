@@ -35,6 +35,7 @@ export async function buildEventListMessageBody(vk, userNameCache, event) {
     place: event.place,
     sum: explicitEventSum(event),
     venue: event.venue ?? null,
+    registrationClosed: event.registrationClosed === true,
     names,
     paid,
     queueNames,

@@ -172,6 +172,17 @@ export async function runSiteRosterPollTick(vk, store) {
       ? snap.matchStatus
       : 'upcoming'
   const vkMuted = snap.vkMuted === true
+  // Стартовал первый матч — закрываем запись до конца турнира и сразу перерисовываем список
+  // (остаётся только кнопка оплаты). Флаг хранится в событии и переживает перезапуск бота.
+  if (matchStatus === 'live' && ev.registrationClosed !== true) {
+    ev.registrationClosed = true
+    logEvent('siteRosterPoll', 'турнир начался — запись в списке закрыта', { peerId, gameEventId })
+    try {
+      await refreshListForEvent({ vk, store, event: ev })
+    } catch (err) {
+      logError('siteRosterPoll/closeRegistration', err, { peerId, gameEventId })
+    }
+  }
   if (!ev._siteMatchPollBootstrapped) {
     ev._siteMatchPollBootstrapped = true
     ev.lastSiteMatchStatus = matchStatus

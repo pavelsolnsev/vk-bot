@@ -93,6 +93,15 @@ export async function handleEventButton({ vk, store, ctx }) {
     return
   }
 
+  // Турнир уже начался: записаться и выйти нельзя (кнопки убраны, но могли нажать на старом сообщении).
+  if ((payload.cmd === 'join' || payload.cmd === 'leave') && event.registrationClosed === true) {
+    await sendCallbackAnswer(vk, ctx, {
+      eventData: vkShowSnackbarEventData('⛔ Запись закрыта — турнир уже начался'),
+    })
+    scheduleListRefresh({ vk, store, context: ctx, event, userId: ctx.userId })
+    return
+  }
+
   if (payload.cmd === 'join') {
     const res = joinEvent(event, ctx.userId, { team: payload.team })
 

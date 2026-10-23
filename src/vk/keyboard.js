@@ -17,6 +17,16 @@ export function buildEventKeyboard(event) {
     // Без inline VK шлёт событие, на которое messages.sendMessageEventAnswer часто отвечает invalid event_id.
     .inline()
 
+  // Турнир начался (на сайте стартовал первый матч) — запись закрыта: оставляем только кнопку оплаты.
+  if (event?.registrationClosed === true) {
+    kb.callbackButton({
+      label: '💳 Оплата участия',
+      payload: { cmd: 'payment_info', event_id: eventId },
+      color: Keyboard.PRIMARY_COLOR,
+    })
+    return kb
+  }
+
   const teamsRaw = Array.isArray(event?.teamSlots) ? event.teamSlots.filter(Boolean) : []
   // ВК даёт максимум 10 рядов; «Выйти» — отдельный ряд, поэтому показываем не больше 9 команд (старые списки с 10 — обрежем).
   const teams = teamsRaw.slice(0, 9)

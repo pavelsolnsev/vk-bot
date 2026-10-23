@@ -35,6 +35,8 @@ export function buildEventListText({
   sum = null,
   /** Площадка турнира (kz / prof) — только для place = tr. */
   venue = null,
+  /** Турнир начался — запись закрыта (вместо инструкции показываем пометку). */
+  registrationClosed = false,
 }) {
   const placeKey = String(place || '')
     .trim()
@@ -70,7 +72,9 @@ export function buildEventListText({
       // Сумма с сайта важнее суммы по умолчанию для локации.
       text += formatPaymentBlock(typeof sum === 'number' && sum > 0 ? { ...loc, sum } : loc)
     } else if (block === 'instructions') {
-      text += formatInstructionsBlock({ teamPickMode: Boolean(teamOptions) })
+      text += registrationClosed
+        ? '⛔ ЗАПИСЬ ЗАКРЫТА\n▸ Турнир начался — записаться или выйти уже нельзя\n\n'
+        : formatInstructionsBlock({ teamPickMode: Boolean(teamOptions) })
     } else if (block === 'players') {
       if (teamOptions) {
         // Командный режим: один объединённый блок — у каждой команды своя основа и очередь под ней.
