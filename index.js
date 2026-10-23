@@ -5,6 +5,7 @@ import { createMessageNewHandler } from './src/handlers/messageNew.js'
 import { createMessageEventHandler } from './src/handlers/messageEvent.js'
 import { startNotifyLoop } from './src/services/checkTimeAndNotify.js'
 import { startListKeyboardWatchdog } from './src/services/listKeyboardWatchdog.js'
+import { installLongPollHealth } from './src/services/longPollHealth.js'
 import { startSiteStartRequestPoll } from './src/services/siteStartRequestPoll.js'
 import { startSiteRosterPoll, stopSiteRosterPoll } from './src/services/siteRosterPoll.js'
 import { initializeFootballSiteMode, isFootballSiteEnabled } from './src/services/footballApi.js'
@@ -184,10 +185,19 @@ function startHeartbeat() {
     const uptime = formatUptime(Date.now() - runtimeStats.startedAtMs)
     logWarn(
       'heartbeat',
-      `vk-bot alive | uptime=${uptime} | message_new=${runtimeStats.messageNewHandled} | message_event=${runtimeStats.messageEventHandled} | top_errors=${runtimeStats.topLevelErrors} | updates_restarts=${runtimeStats.updatesRestartCount} | updates_consecutive_errors=${runtimeStats.updatesConsecutiveErrors}`,
+      `vk-bot alive | uptime=${uptime} | message_new=${runtimeStats.messageNewHandled} | message_event=${runtimeStats.messageEventHandled} | top_errors=${runtimeStats.topLevelErrors} | updates_restarts=${runtimeStats.updatesRestartCount} | updates_consecutive_errors=${runtimeStats.updatesConsecutiveErrors} | lp_connects=${longPollHealth.connects} | lp_last_response_s=${Math.round((Date.now() - longPollHealth.lastResponseAt) / 1000)}`,
     )
   }, heartbeatMs)
 }
+
+// Контроль соединения с ВК: считаем переподключения, а если ВК замолчал — переподключаемся и пишем админам.
+const longPollHealth = installLongPollHealth(vk, {
+  onStuck: (idleMs) =>
+    maybeSendAdminAlert(
+      'longpoll/stuck',
+      `⚠️ vk-bot: ВК не отвечал ${Math.round(idleMs / 1000)} с — нажатия кнопок могли не доходить. Переподключаюсь.`,
+    ),
+})
 
 const handleMessageNew = createMessageNewHandler({ vk, store })
 const handleMessageEvent = createMessageEventHandler({ vk, store })
