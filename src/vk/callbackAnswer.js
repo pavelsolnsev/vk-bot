@@ -1,5 +1,5 @@
 import { resolveGroupIdForApi } from './groupId.js'
-import { logError } from '../utils/botLog.js'
+import { logError, logWarn } from '../utils/botLog.js'
 
 /** Код VK «Too many requests per second» — флуд-контроль на group-токене. */
 const VK_RATE_LIMIT_CODE = 6
@@ -13,6 +13,18 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 /** Достаём числовой код ошибки VK из разных форм (vk-io APIError, сырой объект). */
 function extractVkErrorCode(err) {
   return err?.code ?? err?.errorCode ?? err?.error_code ?? null
+}
+
+function enqueueCallbackAnswer(vk, params) {
+  const result = vk.api.messages.sendMessageEventAnswer(params)
+  const queue = vk.api.worker?.queue
+  const method = 'messages.sendMessageEventAnswer'
+  const queued = Array.isArray(queue) && queue.at(-1)
+  if (queued?.method === method && queued.promise === result) {
+    const firstBackground = queue.findIndex(request => request.method !== method)
+    if (firstBackground >= 0) queue.splice(firstBackground, 0, queue.pop())
+  }
+  return result
 }
 
 /** JSON для event_data: всплывашка только у нажавшего callback-кнопку (VK show_snackbar). */
@@ -73,12 +85,15 @@ export async function sendCallbackAnswer(vk, ctx, { eventData } = {}) {
     }
   }
 
+  const startedAt = Date.now()
   let lastError = null
   let rateRetries = 0
   let i = 0
   while (i < attempts.length) {
     try {
-      await vk.api.messages.sendMessageEventAnswer(attempts[i])
+      await enqueueCallbackAnswer(vk, attempts[i])
+      const elapsedMs = Date.now() - startedAt
+      if (elapsedMs >= 2000) logWarn('callbackAnswer/slow', 'Долгое подтверждение кнопки', { peerId, elapsedMs })
       return
     } catch (err) {
       lastError = err
@@ -89,6 +104,8 @@ export async function sendCallbackAnswer(vk, ctx, { eventData } = {}) {
         continue
       }
       // Другой код (напр. протухший event_id) — пробуем следующий вариант event_data / group_id.
+      const code = extractVkErrorCode(err)
+      if (typeof code !== 'number' || code === VK_RATE_LIMIT_CODE) break
       i += 1
     }
   }
@@ -96,6 +113,7 @@ export async function sendCallbackAnswer(vk, ctx, { eventData } = {}) {
   // Все попытки исчерпаны — у игрока кнопка покажет ошибку. Логируем код, чтобы видеть причину.
   logError('callbackAnswer/failed', lastError, {
     code: extractVkErrorCode(lastError),
+    elapsedMs: Date.now() - startedAt,
     peerId,
     userId,
   })

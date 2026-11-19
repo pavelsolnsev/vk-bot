@@ -1,4 +1,4 @@
-import { logError } from '../utils/botLog.js'
+import { logError, logWarn } from '../utils/botLog.js'
 import { buildEventKeyboard } from '../vk/keyboard.js'
 import { syncEventListMessage } from '../vk/listMessage.js'
 import { buildEventListMessageBody } from './eventListText.js'
@@ -14,15 +14,18 @@ const DEBOUNCE_MS = 800
 // Retry хранится в том же pending и автоматически отменяется новым кликом кнопки.
 const RETRY_DELAY_MS = 5_000
 
-// eventId → { timer, hasNonAdminTrigger }
-// hasNonAdminTrigger: хотя бы один не-админ нажал кнопку в текущем окне дебаунса.
-// Уведомление о сбое шлём только если есть не-админский триггер.
 const pending = new Map()
 
 async function doEdit({ vk, store, context, event }) {
+  const startedAt = Date.now()
   const text = await buildEventListMessageBody(vk, store.userNameCache, event)
   const keyboard = buildEventKeyboard(event)
+  const builtAt = Date.now()
   await syncEventListMessage({ vk, context, event, text, keyboard })
+  const editMs = Date.now() - builtAt
+  if (Date.now() - startedAt >= 2000) {
+    logWarn('listRefresh/slow', 'Долгое обновление списка', { peerId: event.peerId, buildMs: builtAt - startedAt, editMs })
+  }
 }
 
 async function notifyFail(vk, event, err, label, shouldNotify) {
@@ -38,47 +41,45 @@ async function notifyFail(vk, event, err, label, shouldNotify) {
   }
 }
 
-/**
- * Запланировать обновление VK-сообщения со списком с дебаунсом.
- * userId — кто нажал кнопку; уведомление о сбое не шлётся если кликал только админ.
- *
- * При ошибке edit:
- * — сразу шлём уведомление (если триггер не-админ)
- * — retry через RETRY_DELAY_MS (отменяется новым кликом)
- * — если retry тоже упал — второе уведомление
- */
-export function scheduleListRefresh({ vk, store, context, event, userId }) {
-  const existing = pending.get(event.id)
-  // Если хотя бы один не-админ уже был в окне — сохраняем флаг при перепланировании.
-  const prevHasNonAdmin = existing?.hasNonAdminTrigger ?? false
-  if (existing) {
-    clearTimeout(existing.timer)
-  }
-
-  const hasNonAdminTrigger = prevHasNonAdmin || !isAdmin(userId)
-  const entry = { timer: null, hasNonAdminTrigger }
-
+function startTimer(entry, delay, retry = false) {
+  entry.retry = retry
   entry.timer = setTimeout(async () => {
-    pending.delete(event.id)
+    entry.timer = null
+    const request = entry.request
+    const { vk, event } = request
+    const shouldNotify = entry.hasNonAdminTrigger
+    entry.request = null
+    entry.hasNonAdminTrigger = false
     try {
-      await doEdit({ vk, store, context, event })
+      await doEdit(request)
     } catch (err) {
-      await notifyFail(vk, event, err, 'listRefreshDebounce', hasNonAdminTrigger)
-
-      if (!pending.has(event.id)) {
-        const retryEntry = { timer: null, hasNonAdminTrigger }
-        retryEntry.timer = setTimeout(async () => {
-          pending.delete(event.id)
-          try {
-            await doEdit({ vk, store, context, event })
-          } catch (retryErr) {
-            await notifyFail(vk, event, retryErr, 'listRefreshDebounce/retry', hasNonAdminTrigger)
-          }
-        }, RETRY_DELAY_MS)
-        pending.set(event.id, retryEntry)
+      const label = retry ? 'listRefreshDebounce/retry' : 'listRefreshDebounce'
+      void notifyFail(vk, event, err, label, shouldNotify)
+      if (!retry && !entry.request) {
+        entry.request = request
+        entry.hasNonAdminTrigger = shouldNotify
+        startTimer(entry, RETRY_DELAY_MS, true)
+        return
       }
     }
-  }, DEBOUNCE_MS)
+    if (entry.request) startTimer(entry, DEBOUNCE_MS)
+    else pending.delete(event.id)
+  }, delay)
+}
 
-  pending.set(event.id, entry)
+export function scheduleListRefresh(request) {
+  const eventId = request.event.id
+  let entry = pending.get(eventId)
+  if (!entry) {
+    entry = { request, hasNonAdminTrigger: !isAdmin(request.userId) }
+    pending.set(eventId, entry)
+    startTimer(entry, DEBOUNCE_MS)
+    return
+  }
+  entry.request = request
+  entry.hasNonAdminTrigger ||= !isAdmin(request.userId)
+  if (entry.retry && entry.timer) {
+    clearTimeout(entry.timer)
+    startTimer(entry, DEBOUNCE_MS)
+  }
 }

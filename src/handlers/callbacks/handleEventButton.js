@@ -21,6 +21,7 @@ const PAYMENT_INFO_TEXT =
 
 
 export async function handleEventButton({ vk, store, ctx }) {
+  const startedAt = Date.now()
   const payload = normalizeButtonPayload(ctx.eventPayload)
   if (!payload) return
 
@@ -211,6 +212,7 @@ export async function handleEventButton({ vk, store, ctx }) {
       notice: userNoticeText,
       inMain: event.participants.has(ctx.userId),
       inQueue: event.queue.has(ctx.userId),
+      elapsedMs: Date.now() - startedAt,
     })
   }
 
