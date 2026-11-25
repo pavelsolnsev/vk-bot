@@ -36,8 +36,13 @@ export function applySiteRosterToEvent(
   siteTeamSlots = undefined,
   siteTeamLimits = undefined,
   siteListLimit = undefined,
+  siteReserves = undefined,
+  siteReserveOrdered = false,
 ) {
   ensureRoster(event)
+  if (Array.isArray(siteReserves)) {
+    event.reserves = siteReserves.filter(item => item && Number.isInteger(item.seats) && item.seats > 0 && item.seats <= 200 && typeof item.team === 'string')
+  }
 
   // Общий лимит списка с сайта — применяем как maxPlayers (влияет только на не-командный split).
   if (siteListLimit != null && Number.isFinite(siteListLimit) && siteListLimit >= 1) {
@@ -145,6 +150,7 @@ export function applySiteRosterToEvent(
       nextOrder = [...nextOrder.filter((id) => !changedSet.has(id)), ...changed]
     }
   }
+  if (siteReserveOrdered) nextOrder = unique
 
   if (slots) {
     event.participantTeamByVkId = nextTeamMap

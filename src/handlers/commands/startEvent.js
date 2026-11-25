@@ -36,6 +36,7 @@ export async function tryStartEvent({ vk, store, context, text, peerId, senderId
   const linkOk = await registerVkListLinkOnFootballSite({
     peerId,
     gameEventId: event.id,
+    maxPlayers: event.maxPlayers,
     teamSlots: vkLinkEventTeamSlotsPayload(event),
     vkListTournament: isVkTournamentTrListEvent(event),
   })

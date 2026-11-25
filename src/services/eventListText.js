@@ -40,6 +40,7 @@ export async function buildEventListMessageBody(vk, userNameCache, event) {
     paid,
     queueNames,
     maxPlayers: event.maxPlayers,
+    reserves: event.reserves ?? [],
     participantIds: participants,
     participantRatings,
     queueIds: queue,

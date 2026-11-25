@@ -4,6 +4,7 @@ import {
   truncateToDisplayWidth,
 } from './playerName.js'
 import { findTeamSlotLabel } from '../parsers/startCommand.js'
+import { reservedSeatsFor } from '../services/roster.js'
 
 function ratingIcon(ratingValue) {
   if (ratingValue < 10) return '⭐'
@@ -216,6 +217,7 @@ export function formatPlayersBlock(
   participantIds,
   participantRatings,
   teamOptions = null,
+  reserves = [],
 ) {
   const slots = teamOptions?.teamSlots
   const map = teamOptions?.participantTeamByVkId
@@ -223,8 +225,13 @@ export function formatPlayersBlock(
     return formatPlayersBlockGrouped(names, paid, participantIds, participantRatings, slots, map)
   }
   const header = [`🏆 В игре:`]
-  const playerLines = formatPlayerBlockLines(names, paid, participantIds, participantRatings)
-  return [...header, ...playerLines].join('\n') + '\n'
+  const reserved = reservePlayerLines(reservedSeatsFor({ reserves }))
+  const playerLines = names?.length || !reserved.length ? formatPlayerBlockLines(names, paid, participantIds, participantRatings) : []
+  return [...header, ...playerLines, ...reserved].join('\n') + '\n'
+}
+
+function reservePlayerLines(count) {
+  return Array.from({ length: count }, (_, index) => `🔒 Резервный игрок ${index + 1}`)
 }
 
 export function formatQueueBlock(
@@ -282,6 +289,7 @@ export function formatTeamSectionsBlock({
   teamMap,
   teamLimits,
   defaultLimit,
+  reserves = [],
 }) {
   const mainData = buildLineDataMap(names, paid, participantIds, participantRatings)
   const queueData = buildLineDataMap(queueNames, null, queueIds, queueRatings)
@@ -296,10 +304,11 @@ export function formatTeamSectionsBlock({
     const mainOfTeam = mainIds.filter((id) => teamLabelForUser(teamSlots, teamMap, id) === slot)
     const queueOfTeam = queueAllIds.filter((id) => teamLabelForUser(teamSlots, teamMap, id) === slot)
     const limit = teamLimitNumber(teamLimits, slot, defaultLimit)
+    const reserved = reservePlayerLines(reservedSeatsFor({ reserves }, slot))
 
     lines.push('')
-    lines.push(`▸ ${slot} — ${mainOfTeam.length}/${limit}`)
-    if (!mainOfTeam.length) {
+    lines.push(`▸ ${slot} — ${mainOfTeam.length + reserved.length}/${limit}`)
+    if (!mainOfTeam.length && !reserved.length) {
       lines.push('— пока никто не записался')
     } else {
       mainOfTeam.forEach((id, i) => {
@@ -308,6 +317,7 @@ export function formatTeamSectionsBlock({
         lines.push(formatNumberedPlayerLine(i + 1, d.name, d.paid, id, d.rating))
       })
     }
+    lines.push(...reserved)
     if (queueOfTeam.length) {
       // Очередь команды — отдельным вложенным блоком: пустая строка + отступ,
       // чтобы она не сливалась с основой команды.

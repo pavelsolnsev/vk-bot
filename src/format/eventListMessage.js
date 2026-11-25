@@ -21,6 +21,7 @@ export function buildEventListText({
   paid,
   queueNames,
   maxPlayers,
+  reserves = [],
   /** параллельно names — id VK для [id|…] */
   participantIds,
   participantRatings,
@@ -90,6 +91,7 @@ export function buildEventListText({
           teamMap: teamOptions.participantTeamByVkId,
           teamLimits,
           defaultLimit: defaultTeamLimit,
+          reserves,
         })
       } else {
         text += formatPlayersBlock(
@@ -99,6 +101,7 @@ export function buildEventListText({
           participantIds,
           participantRatings,
           teamOptions,
+          reserves,
         )
         // Пустая строка между «В игре» и следующим списком (очередь), чтобы в ВК не слипалось.
         if (blocks[i + 1] === 'queue') {

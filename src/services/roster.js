@@ -38,6 +38,11 @@ export function normTeamKey(name) {
   return String(name ?? '').replace(/\s+/g, ' ').trim().toLowerCase()
 }
 
+export function reservedSeatsFor(event, team = '') {
+  const key = normTeamKey(team)
+  return (event.reserves ?? []).reduce((sum, reserve) => sum + (normTeamKey(reserve.team) === key ? reserve.seats : 0), 0)
+}
+
 /** Есть ли в событии команды (турнирный режим). */
 function teamModeActive(event) {
   return Array.isArray(event.teamSlots) && event.teamSlots.length > 0
@@ -61,7 +66,7 @@ export function splitRosterByTeams(event) {
   const order = Array.isArray(event.rosterOrder) ? event.rosterOrder : []
 
   if (!teamModeActive(event)) {
-    const max = event.maxPlayers
+    const max = Math.max(0, event.maxPlayers - reservedSeatsFor(event))
     return { mainOrder: order.slice(0, max), queueOrder: order.slice(max) }
   }
 
@@ -82,7 +87,7 @@ export function splitRosterByTeams(event) {
   const queueOrder = []
   for (const s of slots) {
     const members = bySlot.get(s) ?? []
-    const limit = teamLimitFor(event, s)
+    const limit = Math.max(0, teamLimitFor(event, s) - reservedSeatsFor(event, s))
     mainOrder.push(...members.slice(0, limit))
     queueOrder.push(...members.slice(limit))
   }

@@ -1,6 +1,6 @@
 import { refreshList } from './context.js'
 import { sendEphemeral } from '../../vk/sendEphemeral.js'
-import { ensureRoster, resplitRoster } from '../../services/roster.js'
+import { ensureRoster, reservedSeatsFor, resplitRoster } from '../../services/roster.js'
 import { findTeamSlotLabel } from '../../parsers/startCommand.js'
 import { matchRemoveTeamSlotCommand } from '../../parsers/adminChatCommands.js'
 import { isFootballSiteEnabled, registerVkListLinkOnFootballSite, setPlayerTeamOnFootballSite } from '../../services/footballApi.js'
@@ -24,6 +24,10 @@ export async function tryRemoveTeamSlot({ vk, store, context, event, text }) {
   const matched = findTeamSlotLabel(slots, m.teamRaw)
   if (!matched) {
     await sendEphemeral(vk, context, '⚠️ Такой команды нет.', 3500)
+    return true
+  }
+  if (reservedSeatsFor(event, matched) > 0) {
+    await sendEphemeral(vk, context, '🔒 Сначала заполните или снимите резерв команды в админке сайта.', 4500)
     return true
   }
 

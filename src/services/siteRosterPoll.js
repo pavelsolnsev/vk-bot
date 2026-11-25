@@ -1,6 +1,7 @@
 import { logError, logWarn, logEvent } from '../utils/botLog.js'
 import { fetchFootballSiteRosterSnapshot, ackVkListCloseRequest, unregisterVkListLinkOnFootballSite } from './footballApi.js'
 import { applySiteRosterToEvent } from './applySiteRosterToEvent.js'
+import { notifyPromotedToMain } from './dmNotifications.js'
 import { refreshListForEvent } from '../handlers/commands/context.js'
 import { runCloseEvent } from '../handlers/commands/closeEvent.js'
 import { deleteLiveNoticeMessage, sendTournamentLiveNotice } from '../vk/tournamentLiveNotice.js'
@@ -242,17 +243,27 @@ export async function runSiteRosterPollTick(vk, store) {
     .join('|')
   const listLimitRaw = Number(snap?.vkListLimit)
   const listLimit = Number.isFinite(listLimitRaw) && listLimitRaw >= 1 ? Math.floor(listLimitRaw) : null
-  const sig = `${roster.join(',')}|${paidSig}|${teamPart}|${slotsSig}|${limitsSig}|ll:${listLimit ?? ''}`
+  const reserves = Array.isArray(snap.vkReserves) ? snap.vkReserves : []
+  const reserveOrderRev = Number(snap.vkReserveOrderRev) || 0
+  const applyReserveOrder = reserveOrderRev > 0 && reserveOrderRev !== ev.reserveOrderRev
+  const reserveSig = JSON.stringify(reserves)
+  const sig = `${roster.join(',')}|${paidSig}|${teamPart}|${slotsSig}|${limitsSig}|ll:${listLimit ?? ''}|rs:${reserveSig}|${reserveOrderRev}`
   if (ev.lastSiteRosterSig === sig) {
     pollDebug('тик: состав без изменений — список в ВК не трогаем', { ms: Date.now() - t0 })
     return
   }
 
-  ev.lastSiteRosterSig = sig
+  const previousQueue = new Set(ev.queue ?? [])
+  const reservesChanged = JSON.stringify(ev.reserves ?? []) !== reserveSig
   // Кто был в списке бота до сверки — чтобы залогировать, кого сайт убрал (главный признак
   // «нажал кнопку, а ничего не произошло»: бот записал, а сверка с сайтом стёрла).
   const beforeIds = new Set([...(ev.participants ?? []), ...(ev.queue ?? [])])
-  applySiteRosterToEvent(ev, roster, paidVkUserIds, teamByVk, siteSlots, teamLimits, listLimit)
+  applySiteRosterToEvent(ev, roster, paidVkUserIds, teamByVk, siteSlots, teamLimits, listLimit, reserves, applyReserveOrder)
+  ev.reserveOrderRev = reserveOrderRev
+  if (reservesChanged) {
+    await notifyPromotedToMain(vk, [...ev.participants].filter(id => previousQueue.has(id)))
+      .catch(err => logError('siteRosterPoll/reservePromotion', err, { peerId, gameEventId }))
+  }
   const afterIds = new Set([...(ev.participants ?? []), ...(ev.queue ?? [])])
   const droppedBySite = [...beforeIds].filter((id) => !afterIds.has(id))
   const addedBySite = [...afterIds].filter((id) => !beforeIds.has(id))
@@ -266,6 +277,7 @@ export async function runSiteRosterPollTick(vk, store) {
     })
   }
   await refreshListForEvent({ vk, store, event: ev })
+  ev.lastSiteRosterSig = sig
   pollDebug('тик: состав применён, список в ВК обновлён', {
     ms: Date.now() - t0,
     rosterCount: roster.length,

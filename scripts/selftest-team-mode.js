@@ -2,6 +2,7 @@ import { parseTeamSlotNames, findTeamSlotLabel } from '../src/parsers/startComma
 import { getUserIdByTeamIndex } from '../src/handlers/commands/indexByNumber.js'
 import { joinEvent, leaveEvent, setTeamLimit } from '../src/services/roster.js'
 import { applySiteRosterToEvent } from '../src/services/applySiteRosterToEvent.js'
+import { buildEventListText } from '../src/format/eventListMessage.js'
 
 function assertEqual(actual, expected, title) {
   if (actual !== expected) {
@@ -142,6 +143,30 @@ function main() {
   runTeamLimitTests()
   runSwitchTests()
   runSiteTeamChangeTests()
+  const event = { ...makeTeamEvent(['Красные', 'Синие']), place: 'tr' }
+  const slots = ['Красные', 'Синие']
+  const limits = { красные: 2 }
+  const labels = { 1: 'Красные', 2: 'Красные', 3: 'Красные' }
+  applySiteRosterToEvent(event, [1, 2, 3], [], labels, slots, limits, null, [{ team: 'Красные', seats: 1 }])
+  assertDeepEqual(event.queueOrder, [2, 3], 'a team reserve occupies a place')
+  const queueRemoval = { ...makeTeamEvent(slots), place: 'tr' }
+  const reserves = [{ team: 'Красные', seats: 1 }]
+  applySiteRosterToEvent(queueRemoval, [1, 2, 3], [], labels, slots, limits, null, reserves)
+  applySiteRosterToEvent(queueRemoval, [1, 3], [], labels, slots, limits, null, reserves)
+  assertDeepEqual(queueRemoval.participantsOrder, [1], 'removing a queued player leaves the main roster intact')
+  assertDeepEqual(queueRemoval.queueOrder, [3], 'the bot drops the queued player removed on the site')
+  applySiteRosterToEvent(event, [1, 3, 2], [], labels, slots, limits, null, [], true)
+  assertDeepEqual(event.participantsOrder, [1, 3], 'a claimed reserve can promote a specific player ahead of the queue')
+  assertDeepEqual(event.queueOrder, [2], 'earlier waiting player stays queued after a claim')
+  const generalText = buildEventListText({
+    date: '25.11.2026', time: '20:00', place: 'fsc', names: [], reserves: [{ team: '', seats: 2 }],
+  })
+  assertEqual(generalText.includes('🏆 В игре:\n🔒 Резервный игрок 1\n🔒 Резервный игрок 2'), true, 'reserves are separate roster lines without player IDs')
+  const teamText = buildEventListText({
+    date: '25.11.2026', time: '20:00', place: 'tr', names: [], teamSlots: slots,
+    participantTeamByVkId: new Map(), teamLimits: new Map([['красные', 2]]), reserves: [{ team: 'Красные', seats: 1 }],
+  })
+  assertEqual(teamText.includes('▸ Красные — 1/2\n🔒 Резервный игрок 1'), true, 'team reserve appears inside its own roster')
   console.log('OK: team-mode selftest passed')
 }
 
